@@ -1,0 +1,9 @@
+---
+keys:
+  - &dev age1g4cs42ukuq40em9uaqt33usxgjmgrlxkhyv824dcfupcq4qlw55s3ml5fe
+creation_rules:
+  - path_regex: tools/secrets/.*\.local\.ya?ml
+    encrypted_regex: "^(data|stringData)$"
+    key_groups:
+      - age:
+          - *dev

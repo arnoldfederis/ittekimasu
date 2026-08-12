@@ -1,0 +1,55 @@
+version: "0.5"
+
+processes:
+  postgresql:
+    command: "./tools/nix/scripts/rundb.sh"
+    namespace: "tools"
+    shutdown:
+      command: "pg_ctl stop -m fast"
+    availability:
+      restart: "always"
+    readiness_probe:
+      exec:
+        command: "pg_isready -U postgres"
+      initial_delay_seconds: 3
+      period_seconds: 5
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3
+    liveness_probe:
+      exec:
+        command: "pg_isready -U postgres"
+      initial_delay_seconds: 3
+      period_seconds: 5
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3
+
+  traefik:
+    command: "traefik --configfile ./tools/traefik/traefik.yaml"
+    namespace: "tools"
+    availability:
+      backoff_seconds: 1
+      restart: "always"
+    readiness_probe:
+      http_get:
+        host: "localhost"
+        port: 9092
+        scheme: "http"
+        path: "/api/http/routers"
+      initial_delay_seconds: 3
+      period_seconds: 5
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3
+    liveness_probe:
+      http_get:
+        host: "localhost"
+        port: 9092
+        scheme: "http"
+        path: "/api/overview"
+      initial_delay_seconds: 3
+      period_seconds: 5
+      timeout_seconds: 3
+      success_threshold: 1
+      failure_threshold: 3

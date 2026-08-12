@@ -1,0 +1,5549 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {
+    "hyperedges": [
+      {
+        "id": "local_dev_orchestration",
+        "label": "Local Dev Orchestration (devbox + process-compose + traefik)",
+        "nodes": [
+          "devbox_config",
+          "process_compose_config",
+          "tools_traefik_traefik_static_config",
+          "traefik_dynamic_config"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "process-compose.yaml"
+      },
+      {
+        "id": "secrets_management_stack",
+        "label": "Secrets Management Stack (sops + age)",
+        "nodes": [
+          "sops_config",
+          "devbox_pkg_sops",
+          "devbox_pkg_age"
+        ],
+        "relation": "form",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": ".sops.yaml"
+      },
+      {
+        "id": "monorepo_task_pipeline",
+        "label": "Monorepo Task Pipeline (bun workspaces + turbo + biome)",
+        "nodes": [
+          "package_json_root",
+          "turbo_config",
+          "biome_config",
+          "package_json_workspaces_apps"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "package.json"
+      },
+      {
+        "id": "local_bootstrap_flow",
+        "label": "Local Environment Bootstrap Flow",
+        "nodes": [
+          "tools_nix_scripts_init_local_main",
+          "tools_nix_scripts_cert_gen_main",
+          "tools_nix_scripts_env_decrypt_main",
+          "tools_nix_scripts_env_sync_main",
+          "tools_nix_scripts_sync_hosts_main",
+          "tools_nix_scripts_dev_main"
+        ],
+        "relation": "participate_in",
+        "confidence": "EXTRACTED",
+        "confidence_score": 1.0,
+        "source_file": "tools/nix/scripts/init-local.sh"
+      },
+      {
+        "id": "sops_secrets_lifecycle",
+        "label": "SOPS Age Secrets Lifecycle",
+        "nodes": [
+          "tools_nix_scripts_env_gen_key_main",
+          "tools_nix_scripts_env_encrypt_main",
+          "tools_nix_scripts_env_decrypt_main",
+          "tools_nix_scripts_env_sync_main",
+          "scripts_concept_age_key_file",
+          "scripts_concept_secrets_dir"
+        ],
+        "relation": "participate_in",
+        "confidence": "INFERRED",
+        "confidence_score": 0.95,
+        "source_file": "tools/nix/scripts/env-encrypt.sh"
+      },
+      {
+        "id": "bun_package_management_wrappers",
+        "label": "Bun package management wrappers",
+        "nodes": [
+          "tools_nix_scripts_bunadd_main",
+          "tools_nix_scripts_bundevadd_main",
+          "tools_nix_scripts_bunrm_main",
+          "tools_nix_scripts_uiadd_main"
+        ],
+        "relation": "form",
+        "confidence": "INFERRED",
+        "confidence_score": 0.85,
+        "source_file": "tools/nix/scripts/bunadd.sh"
+      }
+    ]
+  },
+  "nodes": [
+    {
+      "label": "mvnw",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw",
+      "community": 9,
+      "norm_label": "mvnw"
+    },
+    {
+      "label": "mvnw script",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw__entry",
+      "community": 9,
+      "norm_label": "mvnw script"
+    },
+    {
+      "label": "native_path()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L36",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_native_path",
+      "community": 9,
+      "norm_label": "native_path()"
+    },
+    {
+      "label": "set_java_home()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L45",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_set_java_home",
+      "community": 9,
+      "norm_label": "set_java_home()"
+    },
+    {
+      "label": "hash_string()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L82",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_hash_string",
+      "community": 9,
+      "norm_label": "hash_string()"
+    },
+    {
+      "label": "verbose()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L92",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_verbose",
+      "community": 9,
+      "norm_label": "verbose()"
+    },
+    {
+      "label": "die()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L95",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_die",
+      "community": 9,
+      "norm_label": "die()"
+    },
+    {
+      "label": "trim()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L100",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_trim",
+      "community": 9,
+      "norm_label": "trim()"
+    },
+    {
+      "label": "exec_maven()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L148",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_exec_maven",
+      "community": 9,
+      "norm_label": "exec_maven()"
+    },
+    {
+      "label": "clean()",
+      "file_type": "code",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L165",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "apps_server_mvnw_clean",
+      "community": 9,
+      "norm_label": "clean()"
+    },
+    {
+      "label": "app.ittekimasu:server",
+      "file_type": "code",
+      "type": "package",
+      "ecosystem": "maven",
+      "source_file": "apps/server/pom.xml",
+      "source_location": "L1",
+      "version": "0.0.1-SNAPSHOT",
+      "_origin": "ast",
+      "id": "pkg_com_arnoldfederis_server",
+      "community": 30,
+      "norm_label": "app.ittekimasu:server"
+    },
+    {
+      "label": "ServerApplication (Spring Boot main)",
+      "file_type": "code",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": null,
+      "_origin": "ast",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication",
+      "community": 4,
+      "norm_label": "serverapplication (spring boot main)"
+    },
+    {
+      "label": "ServerApplication",
+      "file_type": "code",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L6",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication",
+      "community": 4,
+      "norm_label": "serverapplication"
+    },
+    {
+      "label": ".main()",
+      "file_type": "code",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication_main",
+      "community": 4,
+      "norm_label": ".main()"
+    },
+    {
+      "label": "ServerApplicationTests",
+      "file_type": "code",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": null,
+      "_origin": "ast",
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests",
+      "community": 4,
+      "norm_label": "serverapplicationtests"
+    },
+    {
+      "label": "ServerApplicationTests",
+      "file_type": "code",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L6",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "id": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests",
+      "community": 4,
+      "norm_label": "serverapplicationtests"
+    },
+    {
+      "label": ".contextLoads()",
+      "file_type": "code",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L9",
+      "_callable": true,
+      "_origin": "ast",
+      "id": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests_contextloads",
+      "community": 4,
+      "norm_label": ".contextloads()"
+    },
+    {
+      "label": "biome.json",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "biome",
+      "community": 3,
+      "norm_label": "biome.json"
+    },
+    {
+      "label": "$schema",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "biome_schema",
+      "community": 3,
+      "norm_label": "$schema"
+    },
+    {
+      "label": "vcs",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "biome_vcs",
+      "community": 3,
+      "norm_label": "vcs"
+    },
+    {
+      "label": "enabled",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "biome_vcs_enabled",
+      "community": 3,
+      "norm_label": "enabled"
+    },
+    {
+      "label": "clientKind",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "biome_vcs_clientkind",
+      "community": 3,
+      "norm_label": "clientkind"
+    },
+    {
+      "label": "useIgnoreFile",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "biome_vcs_useignorefile",
+      "community": 3,
+      "norm_label": "useignorefile"
+    },
+    {
+      "label": "files",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "biome_files",
+      "community": 8,
+      "norm_label": "files"
+    },
+    {
+      "label": "ignoreUnknown",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "biome_files_ignoreunknown",
+      "community": 8,
+      "norm_label": "ignoreunknown"
+    },
+    {
+      "label": "includes",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "biome_files_includes",
+      "community": 8,
+      "norm_label": "includes"
+    },
+    {
+      "label": "**",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref",
+      "community": 8,
+      "norm_label": "**"
+    },
+    {
+      "label": "!apps/**/components/ui",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_apps_components_ui",
+      "community": 8,
+      "norm_label": "!apps/**/components/ui"
+    },
+    {
+      "label": "!apps/**/.next",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_apps_next",
+      "community": 8,
+      "norm_label": "!apps/**/.next"
+    },
+    {
+      "label": "!apps/**/.dist",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_apps_dist",
+      "community": 8,
+      "norm_label": "!apps/**/.dist"
+    },
+    {
+      "label": "!apps/**/build",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_apps_build",
+      "community": 8,
+      "norm_label": "!apps/**/build"
+    },
+    {
+      "label": "!/apps/**/node_modules",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_apps_node_modules",
+      "community": 8,
+      "norm_label": "!/apps/**/node_modules"
+    },
+    {
+      "label": "!node_modules",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_node_modules",
+      "community": 8,
+      "norm_label": "!node_modules"
+    },
+    {
+      "label": "!.direnv",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_direnv",
+      "community": 8,
+      "norm_label": "!.direnv"
+    },
+    {
+      "label": "!.devbox",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_devbox",
+      "community": 8,
+      "norm_label": "!.devbox"
+    },
+    {
+      "label": "!.turbo",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_turbo",
+      "community": 8,
+      "norm_label": "!.turbo"
+    },
+    {
+      "label": "formatter",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L32",
+      "_origin": "ast",
+      "id": "biome_formatter",
+      "community": 3,
+      "norm_label": "formatter"
+    },
+    {
+      "label": "enabled",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L33",
+      "_origin": "ast",
+      "id": "biome_formatter_enabled",
+      "community": 3,
+      "norm_label": "enabled"
+    },
+    {
+      "label": "indentStyle",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L34",
+      "_origin": "ast",
+      "id": "biome_formatter_indentstyle",
+      "community": 3,
+      "norm_label": "indentstyle"
+    },
+    {
+      "label": "indentWidth",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L35",
+      "_origin": "ast",
+      "id": "biome_formatter_indentwidth",
+      "community": 3,
+      "norm_label": "indentwidth"
+    },
+    {
+      "label": "linter",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L37",
+      "_origin": "ast",
+      "id": "biome_linter",
+      "community": 2,
+      "norm_label": "linter"
+    },
+    {
+      "label": "enabled",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L38",
+      "_origin": "ast",
+      "id": "biome_linter_enabled",
+      "community": 2,
+      "norm_label": "enabled"
+    },
+    {
+      "label": "rules",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L39",
+      "_origin": "ast",
+      "id": "biome_linter_rules",
+      "community": 2,
+      "norm_label": "rules"
+    },
+    {
+      "label": "recommended",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L40",
+      "_origin": "ast",
+      "id": "biome_rules_recommended",
+      "community": 2,
+      "norm_label": "recommended"
+    },
+    {
+      "label": "correctness",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L41",
+      "_origin": "ast",
+      "id": "biome_rules_correctness",
+      "community": 2,
+      "norm_label": "correctness"
+    },
+    {
+      "label": "useParseIntRadix",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L42",
+      "_origin": "ast",
+      "id": "biome_correctness_useparseintradix",
+      "community": 2,
+      "norm_label": "useparseintradix"
+    },
+    {
+      "label": "useUniqueElementIds",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L43",
+      "_origin": "ast",
+      "id": "biome_correctness_useuniqueelementids",
+      "community": 2,
+      "norm_label": "useuniqueelementids"
+    },
+    {
+      "label": "useExhaustiveDependencies",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L44",
+      "_origin": "ast",
+      "id": "biome_correctness_useexhaustivedependencies",
+      "community": 2,
+      "norm_label": "useexhaustivedependencies"
+    },
+    {
+      "label": "suspicious",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L46",
+      "_origin": "ast",
+      "id": "biome_rules_suspicious",
+      "community": 2,
+      "norm_label": "suspicious"
+    },
+    {
+      "label": "noUnknownAtRules",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L47",
+      "_origin": "ast",
+      "id": "biome_suspicious_nounknownatrules",
+      "community": 2,
+      "norm_label": "nounknownatrules"
+    },
+    {
+      "label": "noArrayIndexKey",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L48",
+      "_origin": "ast",
+      "id": "biome_suspicious_noarrayindexkey",
+      "community": 2,
+      "norm_label": "noarrayindexkey"
+    },
+    {
+      "label": "nursery",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L50",
+      "_origin": "ast",
+      "id": "biome_rules_nursery",
+      "community": 2,
+      "norm_label": "nursery"
+    },
+    {
+      "label": "useSortedClasses",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L51",
+      "_origin": "ast",
+      "id": "biome_nursery_usesortedclasses",
+      "community": 2,
+      "norm_label": "usesortedclasses"
+    },
+    {
+      "label": "complexity",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L53",
+      "_origin": "ast",
+      "id": "biome_rules_complexity",
+      "community": 2,
+      "norm_label": "complexity"
+    },
+    {
+      "label": "noUselessFragments",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L54",
+      "_origin": "ast",
+      "id": "biome_complexity_nouselessfragments",
+      "community": 2,
+      "norm_label": "nouselessfragments"
+    },
+    {
+      "label": "noStaticOnlyClass",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L55",
+      "_origin": "ast",
+      "id": "biome_complexity_nostaticonlyclass",
+      "community": 2,
+      "norm_label": "nostaticonlyclass"
+    },
+    {
+      "label": "style",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L57",
+      "_origin": "ast",
+      "id": "biome_rules_style",
+      "community": 2,
+      "norm_label": "style"
+    },
+    {
+      "label": "noHeadElement",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L58",
+      "_origin": "ast",
+      "id": "biome_style_noheadelement",
+      "community": 2,
+      "norm_label": "noheadelement"
+    },
+    {
+      "label": "domains",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L61",
+      "_origin": "ast",
+      "id": "biome_linter_domains",
+      "community": 2,
+      "norm_label": "domains"
+    },
+    {
+      "label": "next",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L62",
+      "_origin": "ast",
+      "id": "biome_domains_next",
+      "community": 2,
+      "norm_label": "next"
+    },
+    {
+      "label": "react",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L63",
+      "_origin": "ast",
+      "id": "biome_domains_react",
+      "community": 2,
+      "norm_label": "react"
+    },
+    {
+      "label": "css",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L66",
+      "_origin": "ast",
+      "id": "biome_css",
+      "community": 3,
+      "norm_label": "css"
+    },
+    {
+      "label": "parser",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L67",
+      "_origin": "ast",
+      "id": "biome_css_parser",
+      "community": 3,
+      "norm_label": "parser"
+    },
+    {
+      "label": "tailwindDirectives",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L68",
+      "_origin": "ast",
+      "id": "biome_parser_tailwinddirectives",
+      "community": 3,
+      "norm_label": "tailwinddirectives"
+    },
+    {
+      "label": "javascript",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L71",
+      "_origin": "ast",
+      "id": "biome_javascript",
+      "community": 3,
+      "norm_label": "javascript"
+    },
+    {
+      "label": "globals",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "biome_javascript_globals",
+      "community": 3,
+      "norm_label": "globals"
+    },
+    {
+      "label": "Bun",
+      "file_type": "concept",
+      "source_file": "biome.json",
+      "source_location": "L72",
+      "_origin": "ast",
+      "id": "ref_bun",
+      "community": 3,
+      "norm_label": "bun"
+    },
+    {
+      "label": "formatter",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L73",
+      "_origin": "ast",
+      "id": "biome_javascript_formatter",
+      "community": 3,
+      "norm_label": "formatter"
+    },
+    {
+      "label": "quoteStyle",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L74",
+      "_origin": "ast",
+      "id": "biome_formatter_quotestyle",
+      "community": 3,
+      "norm_label": "quotestyle"
+    },
+    {
+      "label": "formatter",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L78",
+      "_origin": "ast",
+      "id": "biome_json_formatter",
+      "community": 3,
+      "norm_label": "formatter"
+    },
+    {
+      "label": "assist",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L83",
+      "_origin": "ast",
+      "id": "biome_assist",
+      "community": 11,
+      "norm_label": "assist"
+    },
+    {
+      "label": "enabled",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L84",
+      "_origin": "ast",
+      "id": "biome_assist_enabled",
+      "community": 11,
+      "norm_label": "enabled"
+    },
+    {
+      "label": "actions",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L85",
+      "_origin": "ast",
+      "id": "biome_assist_actions",
+      "community": 11,
+      "norm_label": "actions"
+    },
+    {
+      "label": "source",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L86",
+      "_origin": "ast",
+      "id": "biome_actions_source",
+      "community": 11,
+      "norm_label": "source"
+    },
+    {
+      "label": "organizeImports",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L87",
+      "_origin": "ast",
+      "id": "biome_source_organizeimports",
+      "community": 11,
+      "norm_label": "organizeimports"
+    },
+    {
+      "label": "useSortedAttributes",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L88",
+      "_origin": "ast",
+      "id": "biome_source_usesortedattributes",
+      "community": 11,
+      "norm_label": "usesortedattributes"
+    },
+    {
+      "label": "recommended",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": "L90",
+      "_origin": "ast",
+      "id": "biome_actions_recommended",
+      "community": 11,
+      "norm_label": "recommended"
+    },
+    {
+      "label": "devbox.json",
+      "file_type": "code",
+      "source_file": "devbox.json",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "devbox",
+      "community": 6,
+      "norm_label": "devbox.json"
+    },
+    {
+      "label": "$schema",
+      "file_type": "code",
+      "source_file": "devbox.json",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "devbox_schema",
+      "community": 6,
+      "norm_label": "$schema"
+    },
+    {
+      "label": "packages",
+      "file_type": "code",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "devbox_packages",
+      "community": 6,
+      "norm_label": "packages"
+    },
+    {
+      "label": "process-compose@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_process_compose_latest",
+      "community": 6,
+      "norm_label": "process-compose@latest"
+    },
+    {
+      "label": "traefik@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_traefik_latest",
+      "community": 6,
+      "norm_label": "traefik@latest"
+    },
+    {
+      "label": "hostctl@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_hostctl_latest",
+      "community": 6,
+      "norm_label": "hostctl@latest"
+    },
+    {
+      "label": "yq@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_yq_latest",
+      "community": 6,
+      "norm_label": "yq@latest"
+    },
+    {
+      "label": "sops@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_sops_latest",
+      "community": 6,
+      "norm_label": "sops@latest"
+    },
+    {
+      "label": "age@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_age_latest",
+      "community": 6,
+      "norm_label": "age@latest"
+    },
+    {
+      "label": "mkcert@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_mkcert_latest",
+      "community": 6,
+      "norm_label": "mkcert@latest"
+    },
+    {
+      "label": "fzf@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_fzf_latest",
+      "community": 6,
+      "norm_label": "fzf@latest"
+    },
+    {
+      "label": "turbo@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_turbo_latest",
+      "community": 6,
+      "norm_label": "turbo@latest"
+    },
+    {
+      "label": "bun@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_bun_latest",
+      "community": 6,
+      "norm_label": "bun@latest"
+    },
+    {
+      "label": "direnv@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_direnv_latest",
+      "community": 6,
+      "norm_label": "direnv@latest"
+    },
+    {
+      "label": "watch@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_watch_latest",
+      "community": 6,
+      "norm_label": "watch@latest"
+    },
+    {
+      "label": "postgresql@latest",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "ref_postgresql_latest",
+      "community": 6,
+      "norm_label": "postgresql@latest"
+    },
+    {
+      "label": "package.json",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "package",
+      "community": 1,
+      "norm_label": "package.json"
+    },
+    {
+      "label": "name",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "package_name",
+      "community": 1,
+      "norm_label": "name"
+    },
+    {
+      "label": "private",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "package_private",
+      "community": 1,
+      "norm_label": "private"
+    },
+    {
+      "label": "scripts",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "package_scripts",
+      "community": 1,
+      "norm_label": "scripts"
+    },
+    {
+      "label": "build",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "package_scripts_build",
+      "community": 1,
+      "norm_label": "build"
+    },
+    {
+      "label": "dev",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "package_scripts_dev",
+      "community": 1,
+      "norm_label": "dev"
+    },
+    {
+      "label": "lint",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "package_scripts_lint",
+      "community": 1,
+      "norm_label": "lint"
+    },
+    {
+      "label": "format",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L8",
+      "_origin": "ast",
+      "id": "package_scripts_format",
+      "community": 1,
+      "norm_label": "format"
+    },
+    {
+      "label": "pre:push",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "package_scripts_pre_push",
+      "community": 1,
+      "norm_label": "pre:push"
+    },
+    {
+      "label": "check-types",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "package_scripts_check_types",
+      "community": 1,
+      "norm_label": "check-types"
+    },
+    {
+      "label": "devDependencies",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "package_devdependencies",
+      "community": 1,
+      "norm_label": "devdependencies"
+    },
+    {
+      "label": "@biomejs/biome",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "package_devdependencies_biomejs_biome",
+      "community": 1,
+      "norm_label": "@biomejs/biome"
+    },
+    {
+      "label": "@biomejs/biome",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "biomejs_biome",
+      "community": 1,
+      "norm_label": "@biomejs/biome"
+    },
+    {
+      "label": "@types/bun",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "package_devdependencies_types_bun",
+      "community": 1,
+      "norm_label": "@types/bun"
+    },
+    {
+      "label": "@types/bun",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "types_bun",
+      "community": 1,
+      "norm_label": "@types/bun"
+    },
+    {
+      "label": "tailwindcss",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "package_devdependencies_tailwindcss",
+      "community": 1,
+      "norm_label": "tailwindcss"
+    },
+    {
+      "label": "tailwindcss",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "_origin": "ast",
+      "id": "tailwindcss",
+      "community": 1,
+      "norm_label": "tailwindcss"
+    },
+    {
+      "label": "turbo",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "package_devdependencies_turbo",
+      "community": 1,
+      "norm_label": "turbo"
+    },
+    {
+      "label": "turbo",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "package_json_turbo",
+      "community": 1,
+      "norm_label": "turbo"
+    },
+    {
+      "label": "packageManager",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L18",
+      "_origin": "ast",
+      "id": "package_packagemanager",
+      "community": 1,
+      "norm_label": "packagemanager"
+    },
+    {
+      "label": "workspaces",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "package_workspaces",
+      "community": 1,
+      "norm_label": "workspaces"
+    },
+    {
+      "label": "apps/*",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "ref_apps",
+      "community": 1,
+      "norm_label": "apps/*"
+    },
+    {
+      "label": "tailwind.config.ts",
+      "file_type": "code",
+      "source_file": "tailwind.config.ts",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "tailwind_config",
+      "community": 4,
+      "norm_label": "tailwind.config.ts"
+    },
+    {
+      "label": "bunadd.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bunadd",
+      "community": 19,
+      "norm_label": "bunadd.sh"
+    },
+    {
+      "label": "bunadd.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bunadd_sh__entry",
+      "community": 19,
+      "norm_label": "bunadd.sh script"
+    },
+    {
+      "label": "bundevadd.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bundevadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bundevadd",
+      "community": 20,
+      "norm_label": "bundevadd.sh"
+    },
+    {
+      "label": "bundevadd.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bundevadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bundevadd_sh__entry",
+      "community": 20,
+      "norm_label": "bundevadd.sh script"
+    },
+    {
+      "label": "bunrm.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunrm.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bunrm",
+      "community": 21,
+      "norm_label": "bunrm.sh"
+    },
+    {
+      "label": "bunrm.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunrm.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_bunrm_sh__entry",
+      "community": 21,
+      "norm_label": "bunrm.sh script"
+    },
+    {
+      "label": "cert-gen.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_cert_gen",
+      "community": 15,
+      "norm_label": "cert-gen.sh"
+    },
+    {
+      "label": "cert-gen.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_cert_gen_sh__entry",
+      "community": 15,
+      "norm_label": "cert-gen.sh script"
+    },
+    {
+      "label": "NODE_EXTRA_CA_CERTS",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": "L17",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_cert_gen_node_extra_ca_certs",
+      "community": 15,
+      "norm_label": "node_extra_ca_certs"
+    },
+    {
+      "label": "dev.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_dev",
+      "community": 14,
+      "norm_label": "dev.sh"
+    },
+    {
+      "label": "dev.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_dev_sh__entry",
+      "community": 14,
+      "norm_label": "dev.sh script"
+    },
+    {
+      "label": "usage()",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L11",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_dev_usage",
+      "community": 14,
+      "norm_label": "usage()"
+    },
+    {
+      "label": "display_logs()",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L126",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_function"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_dev_display_logs",
+      "community": 14,
+      "norm_label": "display_logs()"
+    },
+    {
+      "label": "env-decrypt.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_decrypt",
+      "community": 16,
+      "norm_label": "env-decrypt.sh"
+    },
+    {
+      "label": "env-decrypt.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_decrypt_sh__entry",
+      "community": 16,
+      "norm_label": "env-decrypt.sh script"
+    },
+    {
+      "label": "SOPS_AGE_KEY_FILE",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": "L3",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_decrypt_sops_age_key_file",
+      "community": 16,
+      "norm_label": "sops_age_key_file"
+    },
+    {
+      "label": "env-encrypt.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_encrypt",
+      "community": 17,
+      "norm_label": "env-encrypt.sh"
+    },
+    {
+      "label": "env-encrypt.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_encrypt_sh__entry",
+      "community": 17,
+      "norm_label": "env-encrypt.sh script"
+    },
+    {
+      "label": "SOPS_AGE_KEY_FILE",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": "L6",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_encrypt_sops_age_key_file",
+      "community": 17,
+      "norm_label": "sops_age_key_file"
+    },
+    {
+      "label": "env-gen-key.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_gen_key",
+      "community": 22,
+      "norm_label": "env-gen-key.sh"
+    },
+    {
+      "label": "env-gen-key.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_gen_key_sh__entry",
+      "community": 22,
+      "norm_label": "env-gen-key.sh script"
+    },
+    {
+      "label": "env-sync.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_sync",
+      "community": 18,
+      "norm_label": "env-sync.sh"
+    },
+    {
+      "label": "env-sync.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_sync_sh__entry",
+      "community": 18,
+      "norm_label": "env-sync.sh script"
+    },
+    {
+      "label": "SOPS_AGE_KEY_FILE",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": "L3",
+      "metadata": {
+        "language": "bash",
+        "kind": "code"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_env_sync_sops_age_key_file",
+      "community": 18,
+      "norm_label": "sops_age_key_file"
+    },
+    {
+      "label": "init-local.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_init_local",
+      "community": 23,
+      "norm_label": "init-local.sh"
+    },
+    {
+      "label": "init-local.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_init_local_sh__entry",
+      "community": 23,
+      "norm_label": "init-local.sh script"
+    },
+    {
+      "label": "remove-hosts.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/remove-hosts.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_remove_hosts",
+      "community": 24,
+      "norm_label": "remove-hosts.sh"
+    },
+    {
+      "label": "remove-hosts.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/remove-hosts.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_remove_hosts_sh__entry",
+      "community": 24,
+      "norm_label": "remove-hosts.sh script"
+    },
+    {
+      "label": "reset-db.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_reset_db",
+      "community": 25,
+      "norm_label": "reset-db.sh"
+    },
+    {
+      "label": "reset-db.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_reset_db_sh__entry",
+      "community": 25,
+      "norm_label": "reset-db.sh script"
+    },
+    {
+      "label": "reset-local.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_reset_local",
+      "community": 26,
+      "norm_label": "reset-local.sh"
+    },
+    {
+      "label": "reset-local.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_reset_local_sh__entry",
+      "community": 26,
+      "norm_label": "reset-local.sh script"
+    },
+    {
+      "label": "rundb.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_rundb",
+      "community": 27,
+      "norm_label": "rundb.sh"
+    },
+    {
+      "label": "rundb.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_rundb_sh__entry",
+      "community": 27,
+      "norm_label": "rundb.sh script"
+    },
+    {
+      "label": "sync-hosts.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_sync_hosts",
+      "community": 28,
+      "norm_label": "sync-hosts.sh"
+    },
+    {
+      "label": "sync-hosts.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_sync_hosts_sh__entry",
+      "community": 28,
+      "norm_label": "sync-hosts.sh script"
+    },
+    {
+      "label": "uiadd.sh",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/uiadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "file"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_uiadd",
+      "community": 29,
+      "norm_label": "uiadd.sh"
+    },
+    {
+      "label": "uiadd.sh script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/uiadd.sh",
+      "source_location": "L1",
+      "metadata": {
+        "language": "bash",
+        "kind": "bash_entrypoint"
+      },
+      "_origin": "ast",
+      "id": "tools_nix_scripts_uiadd_sh__entry",
+      "community": 29,
+      "norm_label": "uiadd.sh script"
+    },
+    {
+      "label": "turbo.json",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L1",
+      "_origin": "ast",
+      "id": "turbo_json_turbo",
+      "community": 5,
+      "norm_label": "turbo.json"
+    },
+    {
+      "label": "$schema",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L2",
+      "_origin": "ast",
+      "id": "turbo_schema",
+      "community": 5,
+      "norm_label": "$schema"
+    },
+    {
+      "label": "tasks",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L3",
+      "_origin": "ast",
+      "id": "turbo_tasks",
+      "community": 5,
+      "norm_label": "tasks"
+    },
+    {
+      "label": "build",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L4",
+      "_origin": "ast",
+      "id": "turbo_tasks_build",
+      "community": 10,
+      "norm_label": "build"
+    },
+    {
+      "label": "dependsOn",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "turbo_build_dependson",
+      "community": 10,
+      "norm_label": "dependson"
+    },
+    {
+      "label": "^build",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L5",
+      "_origin": "ast",
+      "id": "ref_build",
+      "community": 10,
+      "norm_label": "^build"
+    },
+    {
+      "label": "inputs",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "turbo_build_inputs",
+      "community": 10,
+      "norm_label": "inputs"
+    },
+    {
+      "label": "$TURBO_DEFAULT$",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "ref_turbo_default",
+      "community": 10,
+      "norm_label": "$turbo_default$"
+    },
+    {
+      "label": ".env*",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "_origin": "ast",
+      "id": "ref_env",
+      "community": 10,
+      "norm_label": ".env*"
+    },
+    {
+      "label": "outputs",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "turbo_build_outputs",
+      "community": 10,
+      "norm_label": "outputs"
+    },
+    {
+      "label": ".next/**",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "ref_next",
+      "community": 10,
+      "norm_label": ".next/**"
+    },
+    {
+      "label": "!.next/cache/**",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "_origin": "ast",
+      "id": "ref_next_cache",
+      "community": 10,
+      "norm_label": "!.next/cache/**"
+    },
+    {
+      "label": "lint",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L9",
+      "_origin": "ast",
+      "id": "turbo_tasks_lint",
+      "community": 5,
+      "norm_label": "lint"
+    },
+    {
+      "label": "dependsOn",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "turbo_lint_dependson",
+      "community": 5,
+      "norm_label": "dependson"
+    },
+    {
+      "label": "^lint",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": "L10",
+      "_origin": "ast",
+      "id": "ref_lint",
+      "community": 5,
+      "norm_label": "^lint"
+    },
+    {
+      "label": "dev",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L12",
+      "_origin": "ast",
+      "id": "turbo_tasks_dev",
+      "community": 5,
+      "norm_label": "dev"
+    },
+    {
+      "label": "cache",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L13",
+      "_origin": "ast",
+      "id": "turbo_dev_cache",
+      "community": 5,
+      "norm_label": "cache"
+    },
+    {
+      "label": "persistent",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L14",
+      "_origin": "ast",
+      "id": "turbo_dev_persistent",
+      "community": 5,
+      "norm_label": "persistent"
+    },
+    {
+      "label": "format",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L16",
+      "_origin": "ast",
+      "id": "turbo_tasks_format",
+      "community": 5,
+      "norm_label": "format"
+    },
+    {
+      "label": "cache",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L17",
+      "_origin": "ast",
+      "id": "turbo_format_cache",
+      "community": 5,
+      "norm_label": "cache"
+    },
+    {
+      "label": "pre:push",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L19",
+      "_origin": "ast",
+      "id": "turbo_tasks_pre_push",
+      "community": 5,
+      "norm_label": "pre:push"
+    },
+    {
+      "label": "cache",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L20",
+      "_origin": "ast",
+      "id": "turbo_pre_push_cache",
+      "community": 5,
+      "norm_label": "cache"
+    },
+    {
+      "label": "check-types",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L22",
+      "_origin": "ast",
+      "id": "turbo_tasks_check_types",
+      "community": 5,
+      "norm_label": "check-types"
+    },
+    {
+      "label": "cache",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L23",
+      "_origin": "ast",
+      "id": "turbo_check_types_cache",
+      "community": 5,
+      "norm_label": "cache"
+    },
+    {
+      "label": "remoteCache",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L26",
+      "_origin": "ast",
+      "id": "turbo_remotecache",
+      "community": 5,
+      "norm_label": "remotecache"
+    },
+    {
+      "label": "enabled",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": "L27",
+      "_origin": "ast",
+      "id": "turbo_remotecache_enabled",
+      "community": 5,
+      "norm_label": "enabled"
+    },
+    {
+      "label": "org.springframework.boot.autoconfigure.SpringBootApplication",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "org_springframework_boot_autoconfigure_springbootapplication",
+      "community": 4,
+      "norm_label": "org.springframework.boot.autoconfigure.springbootapplication"
+    },
+    {
+      "label": "org.junit.jupiter.api.Test",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "org_junit_jupiter_api_test",
+      "community": 4,
+      "norm_label": "org.junit.jupiter.api.test"
+    },
+    {
+      "label": "org.springframework.boot.test.context.SpringBootTest",
+      "file_type": "code",
+      "source_file": "",
+      "source_location": "",
+      "_origin": "ast",
+      "id": "org_springframework_boot_test_context_springboottest",
+      "community": 4,
+      "norm_label": "org.springframework.boot.test.context.springboottest"
+    },
+    {
+      "label": "SOPS Encryption Config",
+      "file_type": "code",
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "sops_config",
+      "community": 0,
+      "norm_label": "sops encryption config"
+    },
+    {
+      "label": "Age Dev Key",
+      "file_type": "concept",
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "sops_age_dev_key",
+      "community": 0,
+      "norm_label": "age dev key"
+    },
+    {
+      "label": "Local Secrets Encryption Rule",
+      "file_type": "rationale",
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "sops_secrets_path_rule",
+      "community": 0,
+      "norm_label": "local secrets encryption rule"
+    },
+    {
+      "label": "ittekimasu README",
+      "file_type": "document",
+      "source_file": "README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "readme_ittekimasu",
+      "community": 4,
+      "norm_label": "ittekimasu readme"
+    },
+    {
+      "label": "Biome Config",
+      "file_type": "code",
+      "source_file": "biome.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "biome_config",
+      "community": 4,
+      "norm_label": "biome config"
+    },
+    {
+      "label": "Devbox Environment",
+      "file_type": "code",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_config",
+      "community": 0,
+      "norm_label": "devbox environment"
+    },
+    {
+      "label": "process-compose package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_process_compose",
+      "community": 0,
+      "norm_label": "process-compose package"
+    },
+    {
+      "label": "traefik package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_traefik",
+      "community": 0,
+      "norm_label": "traefik package"
+    },
+    {
+      "label": "sops package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_sops",
+      "community": 0,
+      "norm_label": "sops package"
+    },
+    {
+      "label": "age package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_age",
+      "community": 0,
+      "norm_label": "age package"
+    },
+    {
+      "label": "mkcert package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_mkcert",
+      "community": 0,
+      "norm_label": "mkcert package"
+    },
+    {
+      "label": "postgresql package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_postgresql",
+      "community": 0,
+      "norm_label": "postgresql package"
+    },
+    {
+      "label": "turbo package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_turbo",
+      "community": 0,
+      "norm_label": "turbo package"
+    },
+    {
+      "label": "bun package",
+      "file_type": "concept",
+      "source_file": "devbox.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "devbox_pkg_bun",
+      "community": 0,
+      "norm_label": "bun package"
+    },
+    {
+      "label": "Root package.json (ittekimasu workspace)",
+      "file_type": "code",
+      "source_file": "package.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "package_json_root",
+      "community": 4,
+      "norm_label": "root package.json (ittekimasu workspace)"
+    },
+    {
+      "label": "Bun workspaces apps/*",
+      "file_type": "concept",
+      "source_file": "package.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "package_json_workspaces_apps",
+      "community": 4,
+      "norm_label": "bun workspaces apps/*"
+    },
+    {
+      "label": "process-compose services",
+      "file_type": "code",
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "process_compose_config",
+      "community": 0,
+      "norm_label": "process-compose services"
+    },
+    {
+      "label": "postgresql process",
+      "file_type": "concept",
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "process_compose_postgresql",
+      "community": 0,
+      "norm_label": "postgresql process"
+    },
+    {
+      "label": "traefik process",
+      "file_type": "concept",
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "process_compose_traefik",
+      "community": 0,
+      "norm_label": "traefik process"
+    },
+    {
+      "label": "Turborepo Config",
+      "file_type": "code",
+      "source_file": "turbo.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "turbo_config",
+      "community": 4,
+      "norm_label": "turborepo config"
+    },
+    {
+      "label": "turbo build task",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "turbo_task_build",
+      "community": 4,
+      "norm_label": "turbo build task"
+    },
+    {
+      "label": "turbo dev task",
+      "file_type": "concept",
+      "source_file": "turbo.json",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "turbo_task_dev",
+      "community": 4,
+      "norm_label": "turbo dev task"
+    },
+    {
+      "label": "Server Maven POM",
+      "file_type": "code",
+      "source_file": "apps/server/pom.xml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "apps_server_pom",
+      "community": 4,
+      "norm_label": "server maven pom"
+    },
+    {
+      "label": "Traefik Dynamic Config (routers/services/tls)",
+      "file_type": "code",
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "traefik_dynamic_config",
+      "community": 0,
+      "norm_label": "traefik dynamic config (routers/services/tls)"
+    },
+    {
+      "label": "traefik.ittekimasu.dev router",
+      "file_type": "concept",
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "traefik_router_traefik_dashboard",
+      "community": 0,
+      "norm_label": "traefik.ittekimasu.dev router"
+    },
+    {
+      "label": "server.ittekimasu.dev router",
+      "file_type": "concept",
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "traefik_router_server",
+      "community": 0,
+      "norm_label": "server.ittekimasu.dev router"
+    },
+    {
+      "label": "server upstream localhost:4000",
+      "file_type": "concept",
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "traefik_service_server_upstream",
+      "community": 0,
+      "norm_label": "server upstream localhost:4000"
+    },
+    {
+      "label": "TLS options ittekimasu (mkcert certs)",
+      "file_type": "concept",
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "traefik_tls_ittekimasu",
+      "community": 0,
+      "norm_label": "tls options ittekimasu (mkcert certs)"
+    },
+    {
+      "label": "Traefik Static Config",
+      "file_type": "code",
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_traefik_traefik_static_config",
+      "community": 0,
+      "norm_label": "traefik static config"
+    },
+    {
+      "label": "websecure entryPoint :443",
+      "file_type": "concept",
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_traefik_traefik_entrypoint_websecure",
+      "community": 0,
+      "norm_label": "websecure entrypoint :443"
+    },
+    {
+      "label": "traefik entryPoint :9092",
+      "file_type": "concept",
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_traefik_traefik_entrypoint_traefik_api",
+      "community": 0,
+      "norm_label": "traefik entrypoint :9092"
+    },
+    {
+      "label": "bunadd script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_bunadd_main",
+      "community": 13,
+      "norm_label": "bunadd script"
+    },
+    {
+      "label": "bundevadd script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bundevadd.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_bundevadd_main",
+      "community": 13,
+      "norm_label": "bundevadd script"
+    },
+    {
+      "label": "bunrm script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/bunrm.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_bunrm_main",
+      "community": 13,
+      "norm_label": "bunrm script"
+    },
+    {
+      "label": "cert-gen script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_cert_gen_main",
+      "community": 7,
+      "norm_label": "cert-gen script"
+    },
+    {
+      "label": "dev script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_dev_main",
+      "community": 7,
+      "norm_label": "dev script"
+    },
+    {
+      "label": "env-decrypt script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_env_decrypt_main",
+      "community": 7,
+      "norm_label": "env-decrypt script"
+    },
+    {
+      "label": "env-encrypt script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_env_encrypt_main",
+      "community": 7,
+      "norm_label": "env-encrypt script"
+    },
+    {
+      "label": "env-gen-key script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_env_gen_key_main",
+      "community": 7,
+      "norm_label": "env-gen-key script"
+    },
+    {
+      "label": "env-sync script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_env_sync_main",
+      "community": 7,
+      "norm_label": "env-sync script"
+    },
+    {
+      "label": "init-local script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_init_local_main",
+      "community": 7,
+      "norm_label": "init-local script"
+    },
+    {
+      "label": "remove-hosts script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/remove-hosts.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_remove_hosts_main",
+      "community": 7,
+      "norm_label": "remove-hosts script"
+    },
+    {
+      "label": "reset-db script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_reset_db_main",
+      "community": 12,
+      "norm_label": "reset-db script"
+    },
+    {
+      "label": "reset-local script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_reset_local_main",
+      "community": 7,
+      "norm_label": "reset-local script"
+    },
+    {
+      "label": "rundb script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_rundb_main",
+      "community": 12,
+      "norm_label": "rundb script"
+    },
+    {
+      "label": "sync-hosts script",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_sync_hosts_main",
+      "community": 7,
+      "norm_label": "sync-hosts script"
+    },
+    {
+      "label": "uiadd script (shadcn)",
+      "file_type": "code",
+      "source_file": "tools/nix/scripts/uiadd.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "tools_nix_scripts_uiadd_main",
+      "community": 13,
+      "norm_label": "uiadd script (shadcn)"
+    },
+    {
+      "label": "tools/secrets directory",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_secrets_dir",
+      "community": 7,
+      "norm_label": "tools/secrets directory"
+    },
+    {
+      "label": "SOPS age.key file",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_age_key_file",
+      "community": 7,
+      "norm_label": "sops age.key file"
+    },
+    {
+      "label": ".sops.yaml config",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_sops_yaml_config",
+      "community": 7,
+      "norm_label": ".sops.yaml config"
+    },
+    {
+      "label": ".etchosts file",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_etchosts_file",
+      "community": 7,
+      "norm_label": ".etchosts file"
+    },
+    {
+      "label": "tools/certs directory",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_certs_dir",
+      "community": 7,
+      "norm_label": "tools/certs directory"
+    },
+    {
+      "label": ".devbox/virtenv db data",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_devbox_virtenv",
+      "community": 12,
+      "norm_label": ".devbox/virtenv db data"
+    },
+    {
+      "label": "ittekimasu postgres database",
+      "file_type": "concept",
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null,
+      "id": "scripts_concept_ittekimasu_db",
+      "community": 12,
+      "norm_label": "ittekimasu postgres database"
+    }
+  ],
+  "links": [
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L165",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_clean",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L95",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L148",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_exec_maven",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L82",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_hash_string",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_native_path",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L45",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_set_java_home",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L100",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_trim",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L93",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_mvnw",
+      "target": "apps_server_mvnw_verbose",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L294",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw__entry",
+      "target": "apps_server_mvnw_clean",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L118",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw__entry",
+      "target": "apps_server_mvnw_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L155",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw__entry",
+      "target": "apps_server_mvnw_exec_maven",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L200",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw__entry",
+      "target": "apps_server_mvnw_set_java_home",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L154",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw__entry",
+      "target": "apps_server_mvnw_verbose",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/mvnw",
+      "source_location": "L150",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "apps_server_mvnw_exec_maven",
+      "target": "apps_server_mvnw_die",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "apps/server/pom.xml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "apps_server_pom",
+      "target": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication",
+      "target": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication",
+      "target": "org_springframework_boot_autoconfigure_springbootapplication",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests",
+      "target": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_service_server_upstream",
+      "target": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication"
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication",
+      "target": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication_main",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java",
+      "source_location": "L6",
+      "weight": 1.0,
+      "context": "attribute",
+      "_origin": "ast",
+      "source": "apps_server_src_main_java_com_arnoldfederis_server_serverapplication_serverapplication",
+      "target": "org_springframework_boot_autoconfigure_springbootapplication",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests",
+      "target": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests",
+      "target": "org_junit_jupiter_api_test",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "context": "import",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests",
+      "target": "org_springframework_boot_test_context_springboottest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "method",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests",
+      "target": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests_contextloads",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L6",
+      "weight": 1.0,
+      "context": "attribute",
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests",
+      "target": "org_springframework_boot_test_context_springboottest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "source_file": "apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java",
+      "source_location": "L9",
+      "weight": 1.0,
+      "context": "attribute",
+      "_origin": "ast",
+      "source": "apps_server_src_test_java_com_arnoldfederis_server_serverapplicationtests_serverapplicationtests_contextloads",
+      "target": "org_junit_jupiter_api_test",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L83",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_assist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L66",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_css",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_files",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L32",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_formatter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L71",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_javascript",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L78",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_json_formatter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L37",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_linter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_schema",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome",
+      "target": "biome_vcs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_vcs",
+      "target": "biome_vcs_clientkind",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_vcs",
+      "target": "biome_vcs_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_vcs",
+      "target": "biome_vcs_useignorefile",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_files",
+      "target": "biome_files_ignoreunknown",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_files",
+      "target": "biome_files_includes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_apps_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_apps_components_ui",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_apps_dist",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_apps_next",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_apps_node_modules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_devbox",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_direnv",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_node_modules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_files_includes",
+      "target": "ref_turbo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L33",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_formatter",
+      "target": "biome_formatter_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L34",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_formatter",
+      "target": "biome_formatter_indentstyle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L35",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_formatter",
+      "target": "biome_formatter_indentwidth",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L79",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_json_formatter",
+      "target": "biome_formatter_indentstyle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L80",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_json_formatter",
+      "target": "biome_formatter_indentwidth",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L61",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter",
+      "target": "biome_linter_domains",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L38",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter",
+      "target": "biome_linter_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L39",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter",
+      "target": "biome_linter_rules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L53",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_complexity",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L41",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_correctness",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L50",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_nursery",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L40",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_recommended",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L57",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_style",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L46",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_rules",
+      "target": "biome_rules_suspicious",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L44",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_correctness",
+      "target": "biome_correctness_useexhaustivedependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L42",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_correctness",
+      "target": "biome_correctness_useparseintradix",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L43",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_correctness",
+      "target": "biome_correctness_useuniqueelementids",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L48",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_suspicious",
+      "target": "biome_suspicious_noarrayindexkey",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L47",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_suspicious",
+      "target": "biome_suspicious_nounknownatrules",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L51",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_nursery",
+      "target": "biome_nursery_usesortedclasses",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L55",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_complexity",
+      "target": "biome_complexity_nostaticonlyclass",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L54",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_complexity",
+      "target": "biome_complexity_nouselessfragments",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L58",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_rules_style",
+      "target": "biome_style_noheadelement",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L62",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_domains",
+      "target": "biome_domains_next",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L63",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_linter_domains",
+      "target": "biome_domains_react",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L67",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_css",
+      "target": "biome_css_parser",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L68",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_css_parser",
+      "target": "biome_parser_tailwinddirectives",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L73",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_javascript",
+      "target": "biome_javascript_formatter",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L72",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_javascript",
+      "target": "biome_javascript_globals",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L72",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "biome_javascript_globals",
+      "target": "ref_bun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L74",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_javascript_formatter",
+      "target": "biome_formatter_quotestyle",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L85",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_assist",
+      "target": "biome_assist_actions",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L84",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_assist",
+      "target": "biome_assist_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L90",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_assist_actions",
+      "target": "biome_actions_recommended",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L86",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_assist_actions",
+      "target": "biome_actions_source",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L87",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_actions_source",
+      "target": "biome_source_organizeimports",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "biome.json",
+      "source_location": "L88",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "biome_actions_source",
+      "target": "biome_source_usesortedattributes",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "devbox",
+      "target": "devbox_packages",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "devbox",
+      "target": "devbox_schema",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_age_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_bun_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_direnv_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_fzf_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_hostctl_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_mkcert_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_postgresql_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_process_compose_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_sops_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_traefik_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_turbo_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_watch_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "devbox.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "devbox_packages",
+      "target": "ref_yq_latest",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_devdependencies",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_name",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L18",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_packagemanager",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_private",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_scripts",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package",
+      "target": "package_workspaces",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_check_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_dev",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L8",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_format",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_lint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_scripts",
+      "target": "package_scripts_pre_push",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_devdependencies",
+      "target": "package_devdependencies_biomejs_biome",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_devdependencies",
+      "target": "package_devdependencies_tailwindcss",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_devdependencies",
+      "target": "package_devdependencies_turbo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "package_devdependencies",
+      "target": "package_devdependencies_types_bun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "package_devdependencies_biomejs_biome",
+      "target": "biomejs_biome",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "package_devdependencies_types_bun",
+      "target": "types_bun",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L15",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "package_devdependencies_tailwindcss",
+      "target": "tailwindcss",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "imports",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "package_devdependencies_turbo",
+      "target": "package_json_turbo",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "package.json",
+      "source_location": "L19",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "package_workspaces",
+      "target": "ref_apps",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "package.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "package_json_root",
+      "target": "tailwind_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tailwind.config.ts",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tailwind_config",
+      "target": "package_json_workspaces_apps"
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_bunadd",
+      "target": "tools_nix_scripts_bunadd_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/bundevadd.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_bundevadd",
+      "target": "tools_nix_scripts_bundevadd_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/bunrm.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_bunrm",
+      "target": "tools_nix_scripts_bunrm_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_cert_gen",
+      "target": "tools_nix_scripts_cert_gen_node_extra_ca_certs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_cert_gen",
+      "target": "tools_nix_scripts_cert_gen_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L126",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_dev",
+      "target": "tools_nix_scripts_dev_display_logs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_dev",
+      "target": "tools_nix_scripts_dev_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L11",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_dev",
+      "target": "tools_nix_scripts_dev_usage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L144",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "tools_nix_scripts_dev_sh__entry",
+      "target": "tools_nix_scripts_dev_display_logs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/dev.sh",
+      "source_location": "L49",
+      "weight": 1.0,
+      "context": "call",
+      "_origin": "ast",
+      "source": "tools_nix_scripts_dev_sh__entry",
+      "target": "tools_nix_scripts_dev_usage",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_decrypt",
+      "target": "tools_nix_scripts_env_decrypt_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_decrypt",
+      "target": "tools_nix_scripts_env_decrypt_sops_age_key_file",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_encrypt",
+      "target": "tools_nix_scripts_env_encrypt_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_encrypt",
+      "target": "tools_nix_scripts_env_encrypt_sops_age_key_file",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_gen_key",
+      "target": "tools_nix_scripts_env_gen_key_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_sync",
+      "target": "tools_nix_scripts_env_sync_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "defines",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_env_sync",
+      "target": "tools_nix_scripts_env_sync_sops_age_key_file",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_init_local",
+      "target": "tools_nix_scripts_init_local_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/remove-hosts.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_remove_hosts",
+      "target": "tools_nix_scripts_remove_hosts_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_reset_db",
+      "target": "tools_nix_scripts_reset_db_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_reset_local",
+      "target": "tools_nix_scripts_reset_local_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_rundb",
+      "target": "tools_nix_scripts_rundb_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_sync_hosts",
+      "target": "tools_nix_scripts_sync_hosts_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "tools/nix/scripts/uiadd.sh",
+      "source_location": "L1",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "tools_nix_scripts_uiadd",
+      "target": "tools_nix_scripts_uiadd_sh__entry",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L26",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_json_turbo",
+      "target": "turbo_remotecache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L2",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_json_turbo",
+      "target": "turbo_schema",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L3",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_json_turbo",
+      "target": "turbo_tasks",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L4",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L22",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_check_types",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L12",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_dev",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L16",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_format",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L9",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_lint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L19",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks",
+      "target": "turbo_tasks_pre_push",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_build",
+      "target": "turbo_build_dependson",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_build",
+      "target": "turbo_build_inputs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_build",
+      "target": "turbo_build_outputs",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L5",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_build_dependson",
+      "target": "ref_build",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_build_inputs",
+      "target": "ref_env",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L6",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_build_inputs",
+      "target": "ref_turbo_default",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_build_outputs",
+      "target": "ref_next",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L7",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_build_outputs",
+      "target": "ref_next_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_lint",
+      "target": "turbo_lint_dependson",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "extends",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L10",
+      "weight": 1.0,
+      "context": "import",
+      "_origin": "ast",
+      "source": "turbo_lint_dependson",
+      "target": "ref_lint",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L13",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_dev",
+      "target": "turbo_dev_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L14",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_dev",
+      "target": "turbo_dev_persistent",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L17",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_format",
+      "target": "turbo_format_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L20",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_pre_push",
+      "target": "turbo_pre_push_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L23",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_tasks_check_types",
+      "target": "turbo_check_types_cache",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "contains",
+      "confidence": "EXTRACTED",
+      "source_file": "turbo.json",
+      "source_location": "L27",
+      "weight": 1.0,
+      "_origin": "ast",
+      "source": "turbo_remotecache",
+      "target": "turbo_remotecache_enabled",
+      "confidence_score": 1.0
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "sops_config",
+      "target": "devbox_pkg_age"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "sops_config",
+      "target": "devbox_pkg_sops"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "sops_config",
+      "target": "sops_age_dev_key"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": ".sops.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "sops_secrets_path_rule",
+      "target": "sops_age_dev_key"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "README.md",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "readme_ittekimasu",
+      "target": "package_json_root"
+    },
+    {
+      "relation": "references",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "package.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "package_json_root",
+      "target": "biome_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_age"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_bun"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_mkcert"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_postgresql"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_process_compose"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_sops"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_traefik"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "devbox.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "devbox_config",
+      "target": "devbox_pkg_turbo"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "process_compose_traefik",
+      "target": "devbox_pkg_traefik"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_tls_ittekimasu",
+      "target": "devbox_pkg_mkcert"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "process_compose_postgresql",
+      "target": "devbox_pkg_postgresql"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "package.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "package_json_root",
+      "target": "package_json_workspaces_apps"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "package.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "package_json_root",
+      "target": "turbo_config"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.75,
+      "source_file": "package.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "package_json_workspaces_apps",
+      "target": "apps_server_pom"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "process_compose_config",
+      "target": "process_compose_postgresql"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "process_compose_config",
+      "target": "process_compose_traefik"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "process-compose.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "process_compose_traefik",
+      "target": "tools_traefik_traefik_static_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "turbo.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "turbo_config",
+      "target": "turbo_task_build"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "turbo.json",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "turbo_config",
+      "target": "turbo_task_dev"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_traefik_traefik_static_config",
+      "target": "traefik_dynamic_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_dynamic_config",
+      "target": "traefik_router_server"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_dynamic_config",
+      "target": "traefik_router_traefik_dashboard"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_dynamic_config",
+      "target": "traefik_service_server_upstream"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_dynamic_config",
+      "target": "traefik_tls_ittekimasu"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/config.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "traefik_router_server",
+      "target": "traefik_service_server_upstream"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_traefik_traefik_static_config",
+      "target": "tools_traefik_traefik_entrypoint_traefik_api"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/traefik/traefik.yaml",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_traefik_traefik_static_config",
+      "target": "tools_traefik_traefik_entrypoint_websecure"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_bunadd_main",
+      "target": "tools_nix_scripts_bundevadd_main"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_bunadd_main",
+      "target": "tools_nix_scripts_bunrm_main"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "tools/nix/scripts/bunadd.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_bunadd_main",
+      "target": "tools_nix_scripts_uiadd_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/cert-gen.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_cert_gen_main",
+      "target": "scripts_concept_certs_dir"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_cert_gen_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_local_main",
+      "target": "tools_nix_scripts_cert_gen_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_dev_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_local_main",
+      "target": "tools_nix_scripts_dev_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_decrypt_main",
+      "target": "scripts_concept_age_key_file"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_decrypt_main",
+      "target": "scripts_concept_secrets_dir"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/env-decrypt.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_decrypt_main",
+      "target": "tools_nix_scripts_env_encrypt_main"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_sync_main",
+      "target": "tools_nix_scripts_env_decrypt_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_env_decrypt_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_local_main",
+      "target": "tools_nix_scripts_env_decrypt_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_encrypt_main",
+      "target": "scripts_concept_age_key_file"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-encrypt.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_encrypt_main",
+      "target": "scripts_concept_secrets_dir"
+    },
+    {
+      "relation": "shares_data_with",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_gen_key_main",
+      "target": "tools_nix_scripts_env_encrypt_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_gen_key_main",
+      "target": "scripts_concept_age_key_file"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-gen-key.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_gen_key_main",
+      "target": "scripts_concept_sops_yaml_config"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_sync_main",
+      "target": "scripts_concept_age_key_file"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/env-sync.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_env_sync_main",
+      "target": "scripts_concept_secrets_dir"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_env_sync_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_local_main",
+      "target": "tools_nix_scripts_env_sync_main"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_reset_local_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_init_local_main",
+      "target": "tools_nix_scripts_sync_hosts_main"
+    },
+    {
+      "relation": "semantically_similar_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_sync_hosts_main",
+      "target": "tools_nix_scripts_remove_hosts_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_db_main",
+      "target": "scripts_concept_devbox_virtenv"
+    },
+    {
+      "relation": "conceptually_related_to",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "tools/nix/scripts/reset-db.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_db_main",
+      "target": "tools_nix_scripts_rundb_main"
+    },
+    {
+      "relation": "calls",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/reset-local.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_reset_local_main",
+      "target": "tools_nix_scripts_sync_hosts_main"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/rundb.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_rundb_main",
+      "target": "scripts_concept_ittekimasu_db"
+    },
+    {
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/sync-hosts.sh",
+      "source_location": null,
+      "weight": 1.0,
+      "source": "tools_nix_scripts_sync_hosts_main",
+      "target": "scripts_concept_etchosts_file"
+    }
+  ],
+  "hyperedges": [
+    {
+      "id": "local_dev_orchestration",
+      "label": "Local Dev Orchestration (devbox + process-compose + traefik)",
+      "nodes": [
+        "devbox_config",
+        "process_compose_config",
+        "tools_traefik_traefik_static_config",
+        "traefik_dynamic_config"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "process-compose.yaml"
+    },
+    {
+      "id": "secrets_management_stack",
+      "label": "Secrets Management Stack (sops + age)",
+      "nodes": [
+        "sops_config",
+        "devbox_pkg_sops",
+        "devbox_pkg_age"
+      ],
+      "relation": "form",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": ".sops.yaml"
+    },
+    {
+      "id": "monorepo_task_pipeline",
+      "label": "Monorepo Task Pipeline (bun workspaces + turbo + biome)",
+      "nodes": [
+        "package_json_root",
+        "turbo_config",
+        "biome_config",
+        "package_json_workspaces_apps"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "package.json"
+    },
+    {
+      "id": "local_bootstrap_flow",
+      "label": "Local Environment Bootstrap Flow",
+      "nodes": [
+        "tools_nix_scripts_init_local_main",
+        "tools_nix_scripts_cert_gen_main",
+        "tools_nix_scripts_env_decrypt_main",
+        "tools_nix_scripts_env_sync_main",
+        "tools_nix_scripts_sync_hosts_main",
+        "tools_nix_scripts_dev_main"
+      ],
+      "relation": "participate_in",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "tools/nix/scripts/init-local.sh"
+    },
+    {
+      "id": "sops_secrets_lifecycle",
+      "label": "SOPS Age Secrets Lifecycle",
+      "nodes": [
+        "tools_nix_scripts_env_gen_key_main",
+        "tools_nix_scripts_env_encrypt_main",
+        "tools_nix_scripts_env_decrypt_main",
+        "tools_nix_scripts_env_sync_main",
+        "scripts_concept_age_key_file",
+        "scripts_concept_secrets_dir"
+      ],
+      "relation": "participate_in",
+      "confidence": "INFERRED",
+      "confidence_score": 0.95,
+      "source_file": "tools/nix/scripts/env-encrypt.sh"
+    },
+    {
+      "id": "bun_package_management_wrappers",
+      "label": "Bun package management wrappers",
+      "nodes": [
+        "tools_nix_scripts_bunadd_main",
+        "tools_nix_scripts_bundevadd_main",
+        "tools_nix_scripts_bunrm_main",
+        "tools_nix_scripts_uiadd_main"
+      ],
+      "relation": "form",
+      "confidence": "INFERRED",
+      "confidence_score": 0.85,
+      "source_file": "tools/nix/scripts/bunadd.sh"
+    }
+  ]
+}

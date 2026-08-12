@@ -1,0 +1,93 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!apps/**/components/ui",
+      "!**/apps/**/components/ui",
+      "!apps/**/.next",
+      "!apps/**/.dist",
+      "!apps/**/build",
+      "!**/apps/**/.next",
+      "!**/apps/**/.dist",
+      "!**/apps/**/build",
+      "!/apps/**/node_modules",
+      "!**/apps/**/node_modules",
+      "!node_modules",
+      "!**/node_modules",
+      "!.direnv",
+      "!**/direnv",
+      "!.devbox",
+      "!**/devbox",
+      "!.turbo",
+      "!**/turbo"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "correctness": {
+        "useParseIntRadix": "off",
+        "useUniqueElementIds": "off",
+        "useExhaustiveDependencies": "off"
+      },
+      "suspicious": {
+        "noUnknownAtRules": "off",
+        "noArrayIndexKey": "off"
+      },
+      "nursery": {
+        "useSortedClasses": "error"
+      },
+      "complexity": {
+        "noUselessFragments": "off",
+        "noStaticOnlyClass": "off"
+      },
+      "style": {
+        "noHeadElement": "off"
+      }
+    },
+    "domains": {
+      "next": "recommended",
+      "react": "recommended"
+    }
+  },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
+  "javascript": {
+    "globals": ["Bun"],
+    "formatter": {
+      "quoteStyle": "double"
+    }
+  },
+  "json": {
+    "formatter": {
+      "indentStyle": "space",
+      "indentWidth": 2
+    }
+  },
+  "assist": {
+    "enabled": true,
+    "actions": {
+      "source": {
+        "organizeImports": "on",
+        "useSortedAttributes": "on"
+      },
+      "recommended": true
+    }
+  }
+}

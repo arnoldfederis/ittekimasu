@@ -1,0 +1,22 @@
+{
+  "name": "ittekimasu",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "format": "turbo run format",
+    "pre:push": "turbo pre:push && turbo check-types",
+    "check-types": "turbo run check-types"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.8",
+    "@types/bun": "1.3.14",
+    "tailwindcss": "4.3.3",
+    "turbo": "^2.9.16"
+  },
+  "packageManager": "bun@1.3.13",
+  "workspaces": [
+    "apps/*"
+  ]
+}

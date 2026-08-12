@@ -1,0 +1,23 @@
+api:
+  dashboard: true
+  insecure: true
+
+entryPoints:
+  web:
+    address: :80
+  websecure:
+    address: :443
+  traefik:
+    address: :9092
+
+serversTransport:
+  rootCAs:
+    - ./tools/certs/rootCA.pem
+
+providers:
+  file:
+    filename: ./tools/traefik/config.yaml
+    watch: true
+
+log:
+  level: ERROR

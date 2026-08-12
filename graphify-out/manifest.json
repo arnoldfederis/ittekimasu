@@ -1,0 +1,152 @@
+{
+  "/Users/arnoldfederis/Projects/ittekimasu/apps/server/mvnw": {
+    "mtime": 1786289785.4821198,
+    "ast_hash": "ab50dd89da7da2346b28003352eeeeeb",
+    "semantic_hash": "ab50dd89da7da2346b28003352eeeeeb"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/apps/server/pom.xml": {
+    "mtime": 1786293430.0452814,
+    "ast_hash": "638a9424ade2061863568cb25a8242b3",
+    "semantic_hash": "638a9424ade2061863568cb25a8242b3"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/apps/server/src/main/java/com/arnoldfederis/server/ServerApplication.java": {
+    "mtime": 1786289785.481646,
+    "ast_hash": "8c7ad7845a217fb9b2e3fa023dd6afb0",
+    "semantic_hash": "8c7ad7845a217fb9b2e3fa023dd6afb0"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/apps/server/src/test/java/com/arnoldfederis/server/ServerApplicationTests.java": {
+    "mtime": 1786289785.4813793,
+    "ast_hash": "7bf9af1658c9b0134f9cbc8b2ad65122",
+    "semantic_hash": "7bf9af1658c9b0134f9cbc8b2ad65122"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/biome.json": {
+    "mtime": 1779194783.1668458,
+    "ast_hash": "7167713a66c2ac46c12f1d0a469697fc",
+    "semantic_hash": "7167713a66c2ac46c12f1d0a469697fc"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/devbox.json": {
+    "mtime": 1786291303.4696088,
+    "ast_hash": "77585fa4ada8ac2a69a6117d0ac3f309",
+    "semantic_hash": "77585fa4ada8ac2a69a6117d0ac3f309"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/package.json": {
+    "mtime": 1786288933.1276848,
+    "ast_hash": "a4b98b35f99a31e6be90dd82c803f718",
+    "semantic_hash": "a4b98b35f99a31e6be90dd82c803f718"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tailwind.config.ts": {
+    "mtime": 1780096531.5621817,
+    "ast_hash": "9f63ccd2e76c3a769778e41c692e6f48",
+    "semantic_hash": "9f63ccd2e76c3a769778e41c692e6f48"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/bunadd.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "a9ea579b7b1e647b1d94947d2a3aefca",
+    "semantic_hash": "a9ea579b7b1e647b1d94947d2a3aefca"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/bundevadd.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "9f1b6b17ff05bc2d1653e84fd63cf8d8",
+    "semantic_hash": "9f1b6b17ff05bc2d1653e84fd63cf8d8"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/bunrm.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "3796d34dfb95c684969baa69b2d3f4ba",
+    "semantic_hash": "3796d34dfb95c684969baa69b2d3f4ba"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/cert-gen.sh": {
+    "mtime": 1786294499.9106443,
+    "ast_hash": "06c667063d8079ae385e867364fb2d71",
+    "semantic_hash": "06c667063d8079ae385e867364fb2d71"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/dev.sh": {
+    "mtime": 1779194246.4521463,
+    "ast_hash": "ec2fddb4815e2cebda1c136d779da445",
+    "semantic_hash": "ec2fddb4815e2cebda1c136d779da445"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/env-decrypt.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "6b8736baa1ef0a4761e7e8524d9d1d0a",
+    "semantic_hash": "6b8736baa1ef0a4761e7e8524d9d1d0a"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/env-encrypt.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "9fb0c03013aba78ecf2436346721ff6c",
+    "semantic_hash": "9fb0c03013aba78ecf2436346721ff6c"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/env-gen-key.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "1616cdc2bb3f1343f475d148f0c80d9c",
+    "semantic_hash": "1616cdc2bb3f1343f475d148f0c80d9c"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/env-sync.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "f5aabcf49e55f5e79e22fd001f326a88",
+    "semantic_hash": "f5aabcf49e55f5e79e22fd001f326a88"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/init-local.sh": {
+    "mtime": 1764963079.84,
+    "ast_hash": "0dfd5473e12618046d3e4cab952be470",
+    "semantic_hash": "0dfd5473e12618046d3e4cab952be470"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/remove-hosts.sh": {
+    "mtime": 1780953709.3351142,
+    "ast_hash": "79570e850035d6764097e2ef14a0f19d",
+    "semantic_hash": "79570e850035d6764097e2ef14a0f19d"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/reset-db.sh": {
+    "mtime": 1772470075.158386,
+    "ast_hash": "5d11acd94ba73bf09d343433035dea99",
+    "semantic_hash": "5d11acd94ba73bf09d343433035dea99"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/reset-local.sh": {
+    "mtime": 1779192909.7145672,
+    "ast_hash": "0721f4337d161a074f3c4df46d7a48bb",
+    "semantic_hash": "0721f4337d161a074f3c4df46d7a48bb"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/rundb.sh": {
+    "mtime": 1786293128.1412745,
+    "ast_hash": "4d5918788fca263ec1bcade5ab45b6f2",
+    "semantic_hash": "4d5918788fca263ec1bcade5ab45b6f2"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/sync-hosts.sh": {
+    "mtime": 1780953709.333615,
+    "ast_hash": "886cbf74b45fc9e9f48679f0c2fe52c1",
+    "semantic_hash": "886cbf74b45fc9e9f48679f0c2fe52c1"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/nix/scripts/uiadd.sh": {
+    "mtime": 1764965696.68,
+    "ast_hash": "76ff8c69be2f90750874c02c4aedfbdc",
+    "semantic_hash": "76ff8c69be2f90750874c02c4aedfbdc"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/turbo.json": {
+    "mtime": 1780353987.1765103,
+    "ast_hash": "917935a5a1bb890fc34b8066b0dc7c75",
+    "semantic_hash": "917935a5a1bb890fc34b8066b0dc7c75"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/.sops.yaml": {
+    "mtime": 1772470075.1350868,
+    "ast_hash": "6b09957a0313538c7e287f84406e7f9a",
+    "semantic_hash": "6b09957a0313538c7e287f84406e7f9a"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/README.md": {
+    "mtime": 1786288368.0988734,
+    "ast_hash": "3707d989a17a170d0f90b9539646145f",
+    "semantic_hash": "3707d989a17a170d0f90b9539646145f"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/process-compose.yaml": {
+    "mtime": 1786293758.576169,
+    "ast_hash": "551543834704487cfab4fbd305450c10",
+    "semantic_hash": "551543834704487cfab4fbd305450c10"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/traefik/config.yaml": {
+    "mtime": 1786294313.5977364,
+    "ast_hash": "17c29155923a465c8d4020c969082f22",
+    "semantic_hash": "17c29155923a465c8d4020c969082f22"
+  },
+  "/Users/arnoldfederis/Projects/ittekimasu/tools/traefik/traefik.yaml": {
+    "mtime": 1779195234.5583937,
+    "ast_hash": "69ea7f4ae32572c9f7dc6dbe165b3673",
+    "semantic_hash": "69ea7f4ae32572c9f7dc6dbe165b3673"
+  }
+}

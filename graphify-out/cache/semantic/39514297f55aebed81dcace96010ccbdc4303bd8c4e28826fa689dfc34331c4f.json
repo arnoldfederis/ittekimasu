@@ -1,0 +1,1 @@
+{"nodes": [{"id": "scripts_remove_hosts_main", "label": "remove-hosts script", "file_type": "code", "source_file": "tools/nix/scripts/remove-hosts.sh", "source_location": null, "source_url": null, "captured_at": null, "author": null, "contributor": null}], "edges": [], "hyperedges": []}
