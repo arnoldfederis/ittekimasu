@@ -6,6 +6,10 @@ type CardProps = {
   /** Amber treatment, used for the streak card. */
   tone?: "surface" | "accent" | "sunken";
   onPress?: () => void;
+  /** Teal border and tinted fill — the picked option in a chooser. */
+  selected?: boolean;
+  /** Dimmed and unpressable, for "coming soon" rows. */
+  disabled?: boolean;
   className?: string;
 };
 
@@ -19,19 +23,33 @@ export function Card({
   children,
   tone = "surface",
   onPress,
+  selected = false,
+  disabled = false,
   className = "",
 }: CardProps) {
-  const classes = `rounded-card p-4 ${tones[tone]} ${className}`;
+  // Selection reads as a 2px teal ring; unselected keeps a same-width transparent border so
+  // the card does not shift by 2px when it is picked.
+  const selection = selected
+    ? "border-2 border-primary bg-primary-tint"
+    : "border-2 border-transparent";
+
+  const classes = `rounded-card border p-4 ${tones[tone]} ${selection} ${
+    disabled ? "opacity-50" : ""
+  } ${className}`;
+
   const style = {
     borderCurve: "continuous" as const,
     boxShadow:
-      tone === "surface" ? "0 1px 3px rgba(28, 27, 23, 0.06)" : undefined,
+      tone === "surface" && !selected
+        ? "0 1px 3px rgba(28, 27, 23, 0.06)"
+        : undefined,
   };
 
-  if (onPress) {
+  if (onPress && !disabled) {
     return (
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ selected }}
         className={`${classes} active:opacity-80`}
         onPress={onPress}
         style={style}
