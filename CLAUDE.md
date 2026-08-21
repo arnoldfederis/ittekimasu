@@ -76,7 +76,10 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 
 ## Data model
 - `User` (firebase_uid unique, email, display_name)
-- `ChecklistTemplate` (visa_type, country, purpose) → `ChecklistTask` (category, title, default_due_offset_days)
+- `ChecklistTemplate` (visa_type unique, country, purpose, display_name, japanese_name, description, is_available, sort_order) → `ChecklistTask` (category, title, default_due_offset_days, sort_order)
+  - Display strings live in the DB, not the app, so adding a visa route is a migration rather than a release.
+  - `is_available = false` marks a "coming soon" route: listed in the picker, greyed out, no tasks. Give it tasks to flip the flag.
+  - `ChecklistTemplate.tasks` is `@OrderBy("defaultDueOffsetDays ASC, sortOrder ASC")` — chronological. Ordering by `sortOrder` alone interleaves categories, because sortOrder restarts within each one.
 - `UserChecklistTask` (user, task, completed, due_date) — unique on (user_id, task_id)
 - `Course` (title, topic, level, is_premium) → `Card` (front_text, back_text, card_type)
 - `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count) — unique on (user_id, card_id)
@@ -90,7 +93,7 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | UserController | GET | `/users/me` | — | `UserResponse` |
 | UserController | DELETE | `/users/me` | — | 204 |
 | UserController | GET | `/users/me/entitlement` | — | `EntitlementResponse` |
-| ChecklistController | GET | `/templates` | — | `List<ChecklistTemplateSummaryResponse>` |
+| ChecklistController | GET | `/templates` | query `purpose?` | `List<ChecklistTemplateSummaryResponse>` |
 | ChecklistController | GET | `/templates/{visaType}` | — | `ChecklistTemplateDetailResponse` |
 | ChecklistController | POST | `/users/me/checklist` | `CreateChecklistRequest` | `UserChecklistResponse` |
 | ChecklistController | GET | `/users/me/checklist` | query `category?` | `UserChecklistResponse` |
@@ -131,6 +134,7 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 
 ## Screens (apps/mobile/src/app/)
 - `(auth)/sign-in.tsx` — Apple first and most prominent, then Google. No email/password.
+- `onboarding/` — `index.tsx` redirects to `purpose.tsx` → `visa.tsx` → `move-date.tsx`. The three answers live in `lib/onboarding.tsx` (provider mounted on the onboarding layout) and are submitted **once**, on the last screen — a half-written checklist on the server is worse than none.
 
 - `onboarding/` — purpose picker → visa status picker → target move date
 - `(tabs)/index.tsx` — dashboard: checklist progress ring, tasks due this week, streak card

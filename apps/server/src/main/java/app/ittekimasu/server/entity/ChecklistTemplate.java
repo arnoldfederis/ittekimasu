@@ -50,8 +50,13 @@ public class ChecklistTemplate {
 	@Column(name = "sort_order", nullable = false)
 	private int sortOrder;
 
+	/**
+	 * Chronological, not by sortOrder alone — sortOrder restarts within each category, so
+	 * ordering by it interleaves the categories into a jumble. The checklist tab regroups
+	 * by category anyway; a timeline is the more useful flat order.
+	 */
 	@OneToMany(mappedBy = "template", cascade = CascadeType.ALL, orphanRemoval = true)
-	@OrderBy("sortOrder ASC")
+	@OrderBy("defaultDueOffsetDays ASC, sortOrder ASC")
 	private List<ChecklistTask> tasks = new ArrayList<>();
 
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)

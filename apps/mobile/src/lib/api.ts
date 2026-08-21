@@ -40,6 +40,32 @@ export type UserResponse = {
   createdAt: string;
 };
 
+export type VisaPurpose = "WORK" | "STUDY" | "FAMILY" | "OTHER";
+
+export type ChecklistTemplateSummary = {
+  id: string;
+  visaType: string;
+  country: string;
+  purpose: VisaPurpose;
+  displayName: string;
+  japaneseName: string | null;
+  description: string | null;
+  /** False for "coming soon" routes: shown in the picker but not selectable. */
+  available: boolean;
+};
+
+export type ChecklistTaskResponse = {
+  id: string;
+  category: string;
+  title: string;
+  /** Days relative to the move date; negative is before, positive is after arrival. */
+  defaultDueOffsetDays: number;
+};
+
+export type ChecklistTemplateDetail = ChecklistTemplateSummary & {
+  tasks: ChecklistTaskResponse[];
+};
+
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -103,4 +129,13 @@ export const api = {
 
   /** Required by App Store review guideline 5.1.1(v). */
   deleteMe: () => request<void>("/users/me", { method: "DELETE" }),
+
+  /** Includes unavailable templates — the picker greys them out rather than hiding them. */
+  getTemplates: (purpose?: VisaPurpose) =>
+    request<ChecklistTemplateSummary[]>(
+      purpose ? `/templates?purpose=${purpose}` : "/templates",
+    ),
+
+  getTemplate: (visaType: string) =>
+    request<ChecklistTemplateDetail>(`/templates/${visaType}`),
 };
