@@ -1,0 +1,81 @@
+import type { ExpoConfig } from "expo/config";
+
+/**
+ * Dynamic config, not app.json, for one reason: the Google Sign-In plugin needs an iOS URL
+ * scheme that is the *reversed* iOS OAuth client ID. Deriving it from the env var here means
+ * it can never drift from EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID, and the ID is not duplicated
+ * into a checked-in file.
+ */
+function googleIosUrlScheme(): string | undefined {
+  const clientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+  if (!clientId) return undefined;
+
+  // 912040…-abc.apps.googleusercontent.com → com.googleusercontent.apps.912040…-abc
+  return clientId.split(".").reverse().join(".");
+}
+
+const iosUrlScheme = googleIosUrlScheme();
+
+const config: ExpoConfig = {
+  name: "Ittekimasu",
+  slug: "ittekimasu",
+  version: "1.0.0",
+  orientation: "portrait",
+  icon: "./assets/images/icon.png",
+  scheme: "ittekimasu",
+  // "automatic" lets the OS drive light/dark. Without it iOS always reports light.
+  userInterfaceStyle: "automatic",
+  platforms: ["ios", "android"],
+  ios: {
+    icon: "./assets/expo.icon",
+    bundleIdentifier: "com.arnoldfederis.ittekimasu",
+    supportsTablet: false,
+    usesAppleSignIn: true,
+    infoPlist: {
+      ITSAppUsesNonExemptEncryption: false,
+    },
+  },
+  android: {
+    package: "com.arnoldfederis.ittekimasu",
+    softwareKeyboardLayoutMode: "resize",
+    adaptiveIcon: {
+      backgroundColor: "#F5F1E6",
+      foregroundImage: "./assets/images/android-icon-foreground.png",
+      backgroundImage: "./assets/images/android-icon-background.png",
+      monochromeImage: "./assets/images/android-icon-monochrome.png",
+    },
+    predictiveBackGestureEnabled: false,
+  },
+  plugins: [
+    "expo-router",
+    "expo-apple-authentication",
+    [
+      "@react-native-google-signin/google-signin",
+      // Without iosUrlScheme the native SDK throws
+      // "Your app is missing support for the following URL schemes".
+      iosUrlScheme ? { iosUrlScheme } : {},
+    ],
+    [
+      "expo-splash-screen",
+      {
+        backgroundColor: "#F5F1E6",
+        dark: { backgroundColor: "#14130F" },
+        image: "./assets/images/splash-icon.png",
+        imageWidth: 76,
+      },
+    ],
+  ],
+  experiments: {
+    typedRoutes: true,
+    reactCompiler: true,
+  },
+  extra: {
+    router: {},
+    eas: {
+      projectId: "5df7d65b-4e25-4364-adc5-03109611433a",
+    },
+  },
+  owner: "arnoldfederis",
+};
+
+export default config;

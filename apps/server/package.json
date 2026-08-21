@@ -1,0 +1,12 @@
+{
+  "name": "server",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "./mvnw spring-boot:run",
+    "build": "./mvnw -B clean package",
+    "test": "./mvnw -B test",
+    "check-types": "./mvnw -B -q compile",
+    "pre:push": "./mvnw -B test"
+  }
+}

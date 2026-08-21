@@ -60,7 +60,7 @@ fi
 # If action is 'up', run process-compose and exit
 if [[ "$action" == "up" ]]; then
   if [[ "$arg_app" == "mobile" ]]; then
-    cd apps/mobile && bun dev
+    cd apps/mobile && bun start
     exit 0
   fi
 
