@@ -21,6 +21,9 @@
       "!**/apps/**/node_modules",
       "!node_modules",
       "!**/node_modules",
+      "!**/uniwind-types.d.ts",
+      "!**/expo-env.d.ts",
+      "!**/.expo",
       "!.direnv",
       "!**/direnv",
       "!.devbox",
@@ -60,7 +63,8 @@
     },
     "domains": {
       "next": "recommended",
-      "react": "recommended"
+      "react": "recommended",
+      "reactNative": "recommended"
     }
   },
   "css": {

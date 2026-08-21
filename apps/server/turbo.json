@@ -1,0 +1,15 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "inputs": ["src/**", "pom.xml"],
+      "outputs": ["target/**", "!target/**/*.jar.original"]
+    },
+    "test": {
+      "inputs": ["src/**", "pom.xml"],
+      "outputs": ["target/surefire-reports/**"]
+    }
+  }
+}

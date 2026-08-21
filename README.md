@@ -3,6 +3,7 @@
 ## Getting Started
 
 - Runtime: Bun
+- Backend: Java
 - Package Manager: Bun
 - Development Environment: Devbox
 
@@ -125,12 +126,8 @@ reset-local
 dev logs <service-name>
 
 ## example
-dev logs server
+dev logs postgresql
 ```
-
-## Access services
-
-To access the site locally, navigate to [https://ittekimasu.dev](https://ittekimasu.dev) with your browser.
 
 ## Add a package to the project
 ```bash
@@ -159,7 +156,7 @@ bun add -D pg
 bundevadd pg <package-path-folder>
 
 ## example
-bundevadd pg apps/server
+bundevadd pg apps/mobile
 ```
 
 ## Remove a package from the project
@@ -168,7 +165,7 @@ cd <package-path-folder>
 bun rm <package-name>
 
 ## example
-cd apps/server
+cd apps/mobile
 bun rm pg
 
 ## or use the custom script
@@ -188,14 +185,4 @@ bun outdated -r
 bun update --interactive --recursive
 # or
 bun update -i -r
-```
-
-## Add shadcn ui components to the project
-```bash
-cd <project-root>
-
-uiadd <component-name> <package-path-folder>
-
-## example
-uiadd button apps/web
 ```

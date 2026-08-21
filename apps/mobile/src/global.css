@@ -1,0 +1,81 @@
+@import "tailwindcss";
+@import "uniwind";
+
+@source "./**/*.{ts,tsx}";
+
+/*
+ * Design tokens.
+ *
+ * Colours live in @variant blocks so uniwind can swap them with the system appearance.
+ * Both variants MUST declare the same variable names or the uniwind bundler errors with
+ * "All themes must have the same variables".
+ *
+ * Raw values are mirrored in src/constants/theme.ts for props that cannot take a
+ * className. Change a value here and there, or the two drift.
+ *
+ * Palette note: there is deliberately no red. An uncompleted task is neutral, never a
+ * warning — the whole product runs on positive reinforcement.
+ */
+@variant light {
+  --color-primary: #0f6e56;
+  --color-primary-pressed: #0a5442;
+  --color-primary-tint: #e6f0ec;
+
+  --color-accent: #ef9f27;
+  --color-accent-tint: #fdf1dc;
+
+  --color-canvas: #f5f1e6;
+  --color-surface: #ffffff;
+  --color-surface-sunken: #efeadc;
+
+  --color-ink: #1c1b17;
+  --color-ink-muted: #6b675c;
+  --color-ink-subtle: #9a968a;
+  --color-ink-inverse: #ffffff;
+
+  --color-line: #e2dccb;
+  --color-positive: #2f8f5b;
+}
+
+@variant dark {
+  /* Teal is lifted so it still reads as the brand colour against a dark canvas. */
+  --color-primary: #1e8f70;
+  --color-primary-pressed: #17755b;
+  --color-primary-tint: #16302a;
+
+  --color-accent: #f2ac46;
+  --color-accent-tint: #33281a;
+
+  /* Warm near-blacks rather than pure grey, to stay in the same family as the canvas. */
+  --color-canvas: #14130f;
+  --color-surface: #1e1c17;
+  --color-surface-sunken: #2a2721;
+
+  --color-ink: #f2eee3;
+  --color-ink-muted: #a9a395;
+  --color-ink-subtle: #7c7669;
+  --color-ink-inverse: #ffffff;
+
+  --color-line: #33302a;
+  --color-positive: #4cb07e;
+}
+
+/* Appearance-independent tokens. */
+@theme {
+  --text-display: 34px;
+  --text-title: 28px;
+  --text-heading: 22px;
+  --text-body: 17px;
+  --text-callout: 15px;
+  --text-caption: 13px;
+
+  /*
+   * Matches the text size Apple's native Sign in with Apple button renders at, which is
+   * 43% of its height. Anything smaller and the two auth buttons look mismatched.
+   */
+  --text-auth-button: 20px;
+
+  --radius-card: 16px;
+  --radius-button: 14px;
+  --radius-pill: 999px;
+}

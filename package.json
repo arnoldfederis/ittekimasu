@@ -12,11 +12,17 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.8",
     "@types/bun": "1.3.14",
-    "tailwindcss": "4.3.3",
     "turbo": "^2.9.16"
   },
   "packageManager": "bun@1.3.13",
   "workspaces": [
     "apps/*"
+  ],
+  "resolutions": {
+    "react": "19.2.3"
+  },
+  "trustedDependencies": [
+    "@firebase/util",
+    "protobufjs"
   ]
 }

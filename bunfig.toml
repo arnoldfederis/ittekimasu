@@ -1,0 +1,5 @@
+[install]
+# Bun's isolated linker gives each dependent its own physical copy of a package. Expo
+# autolinking then sees several installs of the same native module and a native build can
+# only contain one. Hoisting keeps a single copy.
+linker = "hoisted"

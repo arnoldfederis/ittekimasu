@@ -71,4 +71,7 @@ yarn-error.log*
 # spring env
 apps/server/src/main/resources/application.yaml
 
+#firebase env
+apps/server/src/main/resources/firebase-config.json
+
 .codegraph
