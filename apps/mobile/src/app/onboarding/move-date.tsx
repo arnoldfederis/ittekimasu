@@ -5,6 +5,7 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { StepProgress } from "@/components/step-progress";
 import { useThemeColors } from "@/constants/theme";
+import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useOnboarding } from "@/lib/onboarding";
 import { toast } from "@/lib/toast";
@@ -50,17 +51,28 @@ export default function MoveDateScreen() {
     (year === now.getFullYear() && index < now.getMonth());
 
   async function finish() {
-    if (!selected) return;
+    if (!selected || !template) return;
     setSaving(true);
     try {
       setTargetMoveDate(selected);
-      // Step 3 replaces this with POST /users/me/checklist, which copies the template's
-      // tasks and computes each due date from this move date.
-      toast.info(
-        "Saved locally",
-        "Your checklist is generated once step 3 lands.",
-      );
+
+      // Local date, not toISOString(): that converts to UTC and can shift the month back a
+      // day for anyone east of Greenwich — including everyone in Japan.
+      const isoDate = `${selected.getFullYear()}-${String(
+        selected.getMonth() + 1,
+      ).padStart(2, "0")}-01`;
+
+      const checklist = await api.createChecklist(template.id, isoDate);
+
+      // Only flip the guard once the server actually has the checklist, otherwise the user
+      // lands on an empty dashboard with no way back into onboarding.
       await markOnboarded();
+      toast.success(
+        "Your checklist is ready",
+        `${checklist.totalCount} tasks, starting ${checklist.totalCount > 0 ? "now" : "soon"}.`,
+      );
+    } catch (error) {
+      toast.fromError(error, "Couldn't build your checklist. Try again.");
     } finally {
       setSaving(false);
     }

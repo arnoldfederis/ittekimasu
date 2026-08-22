@@ -66,6 +66,27 @@ export type ChecklistTemplateDetail = ChecklistTemplateSummary & {
   tasks: ChecklistTaskResponse[];
 };
 
+export type UserChecklistTaskResponse = {
+  id: string;
+  title: string;
+  category: string;
+  completed: boolean;
+  /** ISO date, e.g. "2026-10-15". */
+  dueDate: string | null;
+  /** Negative is before the move. Used to flag hard deadlines like the +14 ward office one. */
+  defaultDueOffsetDays: number;
+};
+
+export type UserChecklistResponse = {
+  /** Keyed by category, already in display order — do not re-sort. */
+  tasksByCategory: Record<string, UserChecklistTaskResponse[]>;
+  completedCount: number;
+  totalCount: number;
+  visaType: string | null;
+  templateDisplayName: string | null;
+  targetMoveDate: string | null;
+};
+
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -138,4 +159,24 @@ export const api = {
 
   getTemplate: (visaType: string) =>
     request<ChecklistTemplateDetail>(`/templates/${visaType}`),
+
+  /** Adopts a template. Re-running replaces any existing checklist. */
+  createChecklist: (templateId: string, targetMoveDate: string) =>
+    request<UserChecklistResponse>("/users/me/checklist", {
+      method: "POST",
+      body: { templateId, targetMoveDate },
+    }),
+
+  getChecklist: (category?: string) =>
+    request<UserChecklistResponse>(
+      category
+        ? `/users/me/checklist?category=${category}`
+        : "/users/me/checklist",
+    ),
+
+  setTaskCompleted: (taskId: string, completed: boolean) =>
+    request<UserChecklistTaskResponse>(`/checklist-tasks/${taskId}`, {
+      method: "PATCH",
+      body: { completed },
+    }),
 };
