@@ -2,6 +2,7 @@ package app.ittekimasu.server.entity;
 
 import jakarta.persistence.*;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.UUID;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -29,6 +30,14 @@ public class User {
 
 	@Column(name = "display_name")
 	private String displayName;
+
+	/** The date every checklist due date was computed from. Null until onboarding finishes. */
+	@Column(name = "target_move_date")
+	private LocalDate targetMoveDate;
+
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "checklist_template_id")
+	private ChecklistTemplate checklistTemplate;
 
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	@CurrentTimestamp(event = EventType.INSERT)

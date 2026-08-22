@@ -4,6 +4,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,8 +15,11 @@ import app.ittekimasu.server.dto.response.ChecklistTaskResponse;
 import app.ittekimasu.server.dto.response.ChecklistTemplateDetailResponse;
 import app.ittekimasu.server.dto.response.ChecklistTemplateSummaryResponse;
 import app.ittekimasu.server.exception.GlobalExceptionHandler;
+import app.ittekimasu.server.entity.User;
+import app.ittekimasu.server.exception.ForbiddenException;
 import app.ittekimasu.server.exception.ResourceNotFoundException;
 import app.ittekimasu.server.service.ChecklistService;
+import app.ittekimasu.server.service.UserService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
 import java.util.List;
@@ -25,6 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -38,14 +44,66 @@ class ChecklistControllerTest {
 
   @Autowired private MockMvc mockMvc;
 
+  private static final UUID USER_ID = UUID.fromString("33333333-3333-3333-3333-333333333333");
+  private static final UUID TASK_ID = UUID.fromString("44444444-4444-4444-4444-444444444444");
+
   @MockitoBean private FirebaseAuth firebaseAuth;
   @MockitoBean private ChecklistService checklistService;
+  @MockitoBean private UserService userService;
 
   @BeforeEach
   void stubFirebase() throws Exception {
     FirebaseToken token = org.mockito.Mockito.mock(FirebaseToken.class);
     given(token.getUid()).willReturn("firebase-uid-123");
     given(firebaseAuth.verifyIdToken(VALID_TOKEN)).willReturn(token);
+
+    User user = new User();
+    user.setId(USER_ID);
+    given(userService.findOrCreate(org.mockito.ArgumentMatchers.any())).willReturn(user);
+  }
+
+  @Test
+  void rejectsAChecklistRequestMissingItsMoveDate() throws Exception {
+    mockMvc
+        .perform(
+            post("/api/users/me/checklist")
+                .header(HttpHeaders.AUTHORIZATION, AUTH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"templateId\":\"%s\"}".formatted(TEMPLATE_ID)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.fieldErrors.targetMoveDate").exists());
+  }
+
+  @Test
+  void rejectsATaskUpdateMissingItsCompletedFlag() throws Exception {
+    mockMvc
+        .perform(
+            patch("/api/checklist-tasks/{id}", TASK_ID)
+                .header(HttpHeaders.AUTHORIZATION, AUTH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.fieldErrors.completed").exists());
+  }
+
+  @Test
+  void mapsAForeignTaskTo403NotFound() throws Exception {
+    given(checklistService.setTaskCompletion(USER_ID, TASK_ID, true))
+        .willThrow(new ForbiddenException("That task belongs to someone else."));
+
+    mockMvc
+        .perform(
+            patch("/api/checklist-tasks/{id}", TASK_ID)
+                .header(HttpHeaders.AUTHORIZATION, AUTH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"completed\":true}"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error").value("Forbidden"));
+  }
+
+  @Test
+  void requiresAuthenticationToReadTheChecklist() throws Exception {
+    mockMvc.perform(get("/api/users/me/checklist")).andExpect(status().isUnauthorized());
   }
 
   @Test

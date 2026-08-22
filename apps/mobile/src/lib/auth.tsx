@@ -17,12 +17,18 @@ import { api } from "@/lib/api";
 import { auth } from "@/lib/firebase";
 import { toast } from "@/lib/toast";
 
-const ONBOARDED_KEY = "ittekimasu.onboarded";
+/**
+ * Per-uid so signing in as someone else on the same device never inherits their state.
+ * This is only a cache to stop the app flashing onboarding on a cold start — the server is
+ * the source of truth.
+ */
+const onboardedKey = (uid: string) => `ittekimasu.onboarded.${uid}`;
 
 type AuthState = {
   user: User | null;
   /** True until Firebase has restored the persisted session — render nothing meaningful before this flips. */
   initializing: boolean;
+  /** Whether the user already has a checklist on the server. */
   hasOnboarded: boolean;
   markOnboarded: () => Promise<void>;
   signOut: () => Promise<void>;
@@ -39,19 +45,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return onAuthStateChanged(auth, async (nextUser) => {
       setUser(nextUser);
 
-      if (nextUser) {
-        // Creates the backend user row on first sight. Failure here must not block
-        // sign-in — the next authenticated request will create it just the same.
-        try {
-          await api.getMe();
-        } catch (error) {
-          // Surfaced anyway because in local dev it almost always means the Spring
-          // server isn't running, and nothing else in the app will work.
-          toast.fromError(error, "Signed in, but the server didn't respond.");
-        }
-        setHasOnboarded((await AsyncStorage.getItem(ONBOARDED_KEY)) === "true");
-      } else {
+      if (!nextUser) {
         setHasOnboarded(false);
+        setInitializing(false);
+        return;
+      }
+
+      // Trust the cache first so a cold start doesn't bounce a returning user through
+      // onboarding while the network call is in flight.
+      const cached = await AsyncStorage.getItem(onboardedKey(nextUser.uid));
+      setHasOnboarded(cached === "true");
+
+      try {
+        // Doubles as account creation: the backend creates the user row on the first
+        // authenticated request, so no separate call to /users/me is needed.
+        const checklist = await api.getChecklist();
+        const onboarded = checklist.totalCount > 0;
+
+        setHasOnboarded(onboarded);
+        await AsyncStorage.setItem(
+          onboardedKey(nextUser.uid),
+          String(onboarded),
+        );
+      } catch (error) {
+        // Offline or server down: keep whatever the cache said rather than forcing the
+        // user to redo onboarding. Surfaced because in local dev it almost always means
+        // the Spring server isn't running.
+        toast.fromError(error, "Signed in, but the server didn't respond.");
       }
 
       setInitializing(false);
@@ -59,12 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const markOnboarded = useCallback(async () => {
-    await AsyncStorage.setItem(ONBOARDED_KEY, "true");
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await AsyncStorage.setItem(onboardedKey(uid), "true");
+    }
     setHasOnboarded(true);
   }, []);
 
   const signOut = useCallback(async () => {
-    await AsyncStorage.removeItem(ONBOARDED_KEY);
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await AsyncStorage.removeItem(onboardedKey(uid));
+    }
     await firebaseSignOut(auth);
   }, []);
 

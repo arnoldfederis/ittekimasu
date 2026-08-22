@@ -80,7 +80,11 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - Display strings live in the DB, not the app, so adding a visa route is a migration rather than a release.
   - `is_available = false` marks a "coming soon" route: listed in the picker, greyed out, no tasks. Give it tasks to flip the flag.
   - `ChecklistTemplate.tasks` is `@OrderBy("defaultDueOffsetDays ASC, sortOrder ASC")` — chronological. Ordering by `sortOrder` alone interleaves categories, because sortOrder restarts within each one.
-- `UserChecklistTask` (user, task, completed, due_date) — unique on (user_id, task_id)
+- `UserChecklistTask` (user, task, completed, due_date, completed_at) — unique on (user_id, task_id), `ON DELETE CASCADE` from users so `DELETE /users/me` really removes everything
+  - `users.target_move_date` and `users.checklist_template_id` record what the checklist was generated from, so the profile can show them and step 6 can change them.
+  - `POST /users/me/checklist` is **idempotent**: it wipes the user's existing rows first (with an explicit `flush()` before the inserts, or the unique constraint trips when Hibernate reorders them). Re-running discards completion state — the right trade for "I picked the wrong visa".
+  - `ChecklistService` loads the user by id **inside its own transaction**. `UserService.findOrCreate` returns a DETACHED entity: mutating it would silently never flush, and touching its lazy `checklistTemplate` would throw with `open-in-view: false`.
+  - A task belonging to someone else returns **403, not 404** — 404 would leak whether the id exists.
 - `Course` (title, topic, level, is_premium) → `Card` (front_text, back_text, card_type)
 - `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count) — unique on (user_id, card_id)
 - `Entitlement` (is_premium, revenuecat_customer_id, expires_at) — one per user
@@ -137,7 +141,7 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 - `onboarding/` — `index.tsx` redirects to `purpose.tsx` → `visa.tsx` → `move-date.tsx`. The three answers live in `lib/onboarding.tsx` (provider mounted on the onboarding layout) and are submitted **once**, on the last screen — a half-written checklist on the server is worse than none.
 
 - `onboarding/` — purpose picker → visa status picker → target move date
-- `(tabs)/index.tsx` — dashboard: checklist progress ring, tasks due this week, streak card
+- `(tabs)/index.tsx` — dashboard: progress ring, up to 3 tasks due within 7 days (overdue included), streak card. Shares `lib/checklist.tsx` state with the checklist tab so an optimistic toggle updates both.
 - `(tabs)/checklist.tsx` — full checklist grouped by category
 - `(tabs)/learn.tsx` — course list, then flashcard review with Again/Hard/Good/Easy
 - `(tabs)/profile.tsx` — stats, plan status, settings
