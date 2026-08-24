@@ -85,7 +85,11 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - `POST /users/me/checklist` is **idempotent**: it wipes the user's existing rows first (with an explicit `flush()` before the inserts, or the unique constraint trips when Hibernate reorders them). Re-running discards completion state — the right trade for "I picked the wrong visa".
   - `ChecklistService` loads the user by id **inside its own transaction**. `UserService.findOrCreate` returns a DETACHED entity: mutating it would silently never flush, and touching its lazy `checklistTemplate` would throw with `open-in-view: false`.
   - A task belonging to someone else returns **403, not 404** — 404 would leak whether the id exists.
-- `Course` (title, topic, level, is_premium) → `Card` (front_text, back_text, card_type)
+- `Course` (title, topic, level, description, is_premium, sort_order; unique on topic+level) → `Card` (front_text, back_text, card_type, sort_order)
+  - Deliberately topic-agnostic: a course is just an ordered deck, so ward-office vocabulary or a non-Japanese topic is a seed, not a migration.
+  - Card shape: front is the word as written, back is `reading · meaning` so the learner recalls the reading, not just the gloss.
+  - `GET /courses` returns premium decks too, with `cardCount`. The learn tab dims them rather than hiding them — seeing what exists is what makes the paywall read as an unlock.
+  - **N5 vocabulary has not been checked against an official JLPT list.** Worth a proofread before launch; spaced repetition makes a wrong reading stick.
 - `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count) — unique on (user_id, card_id)
 - `Entitlement` (is_premium, revenuecat_customer_id, expires_at) — one per user
 

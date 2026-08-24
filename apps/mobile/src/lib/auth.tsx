@@ -28,6 +28,8 @@ type AuthState = {
   user: User | null;
   /** True until Firebase has restored the persisted session — render nothing meaningful before this flips. */
   initializing: boolean;
+  /** True while the correct route for a signed-in user is still unknown. */
+  resolvingRoute: boolean;
   /** Whether the user already has a checklist on the server. */
   hasOnboarded: boolean;
   markOnboarded: () => Promise<void>;
@@ -40,6 +42,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [initializing, setInitializing] = useState(true);
   const [hasOnboarded, setHasOnboarded] = useState(false);
+  /**
+   * True while we still have no idea which route this user belongs on. The router renders
+   * nothing rather than guessing — guessing "not onboarded" is what made onboarding flash
+   * for a second before jumping to the tabs.
+   */
+  const [resolvingRoute, setResolvingRoute] = useState(false);
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (nextUser) => {
@@ -47,14 +55,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (!nextUser) {
         setHasOnboarded(false);
+        setResolvingRoute(false);
         setInitializing(false);
         return;
       }
 
-      // Trust the cache first so a cold start doesn't bounce a returning user through
-      // onboarding while the network call is in flight.
       const cached = await AsyncStorage.getItem(onboardedKey(nextUser.uid));
-      setHasOnboarded(cached === "true");
+      const hasCachedAnswer = cached !== null;
+
+      // A cached answer is trustworthy enough to route on immediately; the fetch below
+      // just reconciles it. With no cached answer there is nothing to show yet, so hold.
+      if (hasCachedAnswer) {
+        setHasOnboarded(cached === "true");
+      }
+      setResolvingRoute(!hasCachedAnswer);
 
       try {
         // Doubles as account creation: the backend creates the user row on the first
@@ -68,13 +82,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           String(onboarded),
         );
       } catch (error) {
-        // Offline or server down: keep whatever the cache said rather than forcing the
-        // user to redo onboarding. Surfaced because in local dev it almost always means
-        // the Spring server isn't running.
+        // Offline or server down. With a cached answer we keep it; without one the only
+        // safe default is onboarding, which is recoverable — the server rejects a second
+        // checklist anyway by replacing it.
+        if (!hasCachedAnswer) {
+          setHasOnboarded(false);
+        }
         toast.fromError(error, "Signed in, but the server didn't respond.");
+      } finally {
+        setResolvingRoute(false);
+        setInitializing(false);
       }
-
-      setInitializing(false);
     });
   }, []);
 
@@ -87,16 +105,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    const uid = auth.currentUser?.uid;
-    if (uid) {
-      await AsyncStorage.removeItem(onboardedKey(uid));
-    }
+    // The cache key is per-uid, so leaving it is both safe and the whole point: signing
+    // back in routes instantly instead of flashing onboarding while the checklist loads.
     await firebaseSignOut(auth);
   }, []);
 
   const value = useMemo(
-    () => ({ user, initializing, hasOnboarded, markOnboarded, signOut }),
-    [user, initializing, hasOnboarded, markOnboarded, signOut],
+    () => ({
+      user,
+      initializing,
+      resolvingRoute,
+      hasOnboarded,
+      markOnboarded,
+      signOut,
+    }),
+    [user, initializing, resolvingRoute, hasOnboarded, markOnboarded, signOut],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;
