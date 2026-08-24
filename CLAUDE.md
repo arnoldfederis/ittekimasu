@@ -90,7 +90,13 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - Card shape: front is the word as written, back is `reading · meaning` so the learner recalls the reading, not just the gloss.
   - `GET /courses` returns premium decks too, with `cardCount`. The learn tab dims them rather than hiding them — seeing what exists is what makes the paywall read as an unlock.
   - **N5 vocabulary has not been checked against an official JLPT list.** Worth a proofread before launch; spaced repetition makes a wrong reading stick.
-- `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count) — unique on (user_id, card_id)
+- `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count, last_reviewed_at) — unique on (user_id, card_id)
+  - A row exists only once the card has been reviewed. An unseen card is the **absence** of a row, which is why the due query is a LEFT JOIN and not a bulk insert when a deck is unlocked.
+  - `streak_count` is per-card (consecutive non-AGAIN answers). The **day** streak lives on `users` — see below.
+  - `last_reviewed_at` drives the free daily cap. Only the latest review per card survives, so the cap counts **distinct cards touched today**: re-rating a card you already answered today is free.
+- `users.current_streak_days` / `longest_streak_days` / `last_studied_on` — the study-day streak.
+  - Not derivable from `user_card_progress` (only the latest review per card is kept, so drilling the same 20 cards daily would look like one study day). Cheaper than a review-history table.
+  - A gap of two or more days restarts at **1**, not 0 — the learner did study today and the card should say so.
 - `Entitlement` (is_premium, revenuecat_customer_id, expires_at) — one per user
 
 ## Endpoints
@@ -107,7 +113,7 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | ChecklistController | GET | `/users/me/checklist` | query `category?` | `UserChecklistResponse` |
 | ChecklistController | PATCH | `/checklist-tasks/{taskId}` | `UpdateChecklistTaskRequest` | `UserChecklistTaskResponse` |
 | CourseController | GET | `/courses` | query `topic?` | `List<CourseSummaryResponse>` |
-| CourseController | GET | `/courses/{courseId}/due` | — | `List<CardDueResponse>` |
+| CourseController | GET | `/courses/{courseId}/due` | — | `DueCardsResponse` |
 | ReviewController | POST | `/reviews/{cardId}` | `SubmitReviewRequest` | `ReviewResultResponse` |
 | RevenueCatWebhookController | POST | `/webhooks/revenuecat` | `RevenueCatEventRequest` | 200 |
 
@@ -121,7 +127,14 @@ EASY  → ease += 0.15, multiplier = ease * 1.3
 interval = (interval == 1) ? 6 : round(interval * multiplier)
 nextReviewDate = today + interval days
 ```
-New cards start at ease 2.5.
+New cards start at ease 2.5 and interval 1, so the first non-AGAIN answer takes the 1 → 6 jump. AGAIN skips the interval formula entirely and resets to 1, which means a lapsed card takes that jump again.
+
+- `SpacedRepetitionService` is **pure** — no repositories, no clock, no transaction — so the algorithm is unit-testable on its own. `ReviewService` owns persistence, the daily cap, and the streak.
+- Both endpoints go through `ReviewService`; `GET /courses/{id}/due` returns **due cards first (soonest first), then unseen ones**, so a backlog is cleared before new material is piled on top of it.
+- Every due card carries `intervals` (what each of the four buttons would schedule). Computed server-side so the algorithm has exactly one implementation — the client must never recompute it.
+- Day boundary is **`Asia/Tokyo` for everyone** (`ReviewService.APP_ZONE`), not a per-user timezone. A settings screen, not an MVP.
+- Free cap is `ReviewService.FREE_DAILY_REVIEW_LIMIT = 20`, enforced server-side. Past it, `POST /reviews/{cardId}` returns **402**, which the client treats as the paywall trigger (`ApiError.requiresPremium`). A premium deck returns 402 for the same reason. Until `Entitlement` lands in step 6 every account is free, so those 402s are unconditional.
+- `DueCardsResponse` returns counts, not just cards: empty `cards` with `reviewsRemainingToday > 0` means "nothing due", with `0` it means "allowance spent". Different copy, so the client needs to tell them apart.
 
 ## Entitlement sync (EntitlementService)
 Webhook events INITIAL_PURCHASE / RENEWAL / UNCANCELLATION → `isPremium = true`.
@@ -147,11 +160,14 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 - `onboarding/` — purpose picker → visa status picker → target move date
 - `(tabs)/index.tsx` — dashboard: progress ring, up to 3 tasks due within 7 days (overdue included), streak card. Shares `lib/checklist.tsx` state with the checklist tab so an optimistic toggle updates both.
 - `(tabs)/checklist.tsx` — full checklist grouped by category
-- `(tabs)/learn.tsx` — course list, then flashcard review with Again/Hard/Good/Easy
+- `(tabs)/learn.tsx` — streak card, active deck with progress and due count, dimmed premium decks. Refetches on focus (`useFocusEffect`), or finishing a session leaves a stale "Review 12 cards" button behind.
+- `review/[courseId].tsx` — the flashcard session. A **modal, not a tab**: one task the learner starts and finishes, and the tab bar would invite them to wander out half-done.
 - `(tabs)/profile.tsx` — stats, plan status, settings
 - `paywall.tsx`
 
 Design principle carried from a prior project: positive reinforcement only. No red X, no "wrong", no punitive streak loss. "Again" is a neutral scheduling signal.
+- The rating buttons are **Again = neutral ink, Hard = amber, Good = green, Easy = teal**. Deliberately no red on "Again", per the palette rule in `global.css`.
+- Every button shows its own interval ("Good / 6 days") rather than only a highlighted one — there is no hover state on touch, and seeing all four is what makes honest self-rating feel safe.
 
 ## Shipaton requirements
 - First public release must happen during the submission window

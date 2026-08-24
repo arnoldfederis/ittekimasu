@@ -102,6 +102,14 @@ function RootNavigator() {
 
       <Stack.Protected guard={!!user && hasOnboarded}>
         <Stack.Screen name="(tabs)" />
+        {/*
+          A modal, not a tab: a review session is a single task the learner starts and
+          finishes, and the tab bar would invite them to wander out of it half-done.
+        */}
+        <Stack.Screen
+          name="review/[courseId]"
+          options={{ presentation: "modal" }}
+        />
       </Stack.Protected>
     </Stack>
   );
