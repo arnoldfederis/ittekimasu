@@ -87,6 +87,16 @@ export type UserChecklistResponse = {
   targetMoveDate: string | null;
 };
 
+export type CourseSummary = {
+  id: string;
+  title: string;
+  topic: string;
+  level: string | null;
+  description: string | null;
+  isPremium: boolean;
+  cardCount: number;
+};
+
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -173,6 +183,10 @@ export const api = {
         ? `/users/me/checklist?category=${category}`
         : "/users/me/checklist",
     ),
+
+  /** Includes premium courses — the learn tab dims them rather than hiding them. */
+  getCourses: (topic?: string) =>
+    request<CourseSummary[]>(topic ? `/courses?topic=${topic}` : "/courses"),
 
   setTaskCompleted: (taskId: string, completed: boolean) =>
     request<UserChecklistTaskResponse>(`/checklist-tasks/${taskId}`, {

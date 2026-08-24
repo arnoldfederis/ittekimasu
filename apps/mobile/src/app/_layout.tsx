@@ -69,7 +69,7 @@ function Chrome() {
 }
 
 function RootNavigator() {
-  const { user, initializing, hasOnboarded } = useAuth();
+  const { user, initializing, resolvingRoute, hasOnboarded } = useAuth();
   const colors = useThemeColors();
 
   useEffect(() => {
@@ -78,9 +78,10 @@ function RootNavigator() {
     }
   }, [initializing]);
 
-  // Hold on the splash rather than flashing the sign-in screen at a user who is
-  // already signed in but whose session is still being restored from AsyncStorage.
-  if (initializing) {
+  // Hold rather than guess. On the first launch this keeps the splash up while the
+  // session is restored; on a later sign-in it stops onboarding painting for a moment
+  // before the checklist comes back and bounces the user to the tabs.
+  if (initializing || resolvingRoute) {
     return null;
   }
 
