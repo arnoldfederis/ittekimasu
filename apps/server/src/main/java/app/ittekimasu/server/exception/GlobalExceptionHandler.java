@@ -24,6 +24,15 @@ public class GlobalExceptionHandler {
         .body(ErrorResponse.of(HttpStatus.FORBIDDEN.value(), "Forbidden", ex.getMessage()));
   }
 
+  /** 402 is the paywall signal the mobile client branches on. */
+  @ExceptionHandler(PaymentRequiredException.class)
+  public ResponseEntity<ErrorResponse> handlePaymentRequired(PaymentRequiredException ex) {
+    return ResponseEntity.status(HttpStatus.PAYMENT_REQUIRED)
+        .body(
+            ErrorResponse.of(
+                HttpStatus.PAYMENT_REQUIRED.value(), "Payment Required", ex.getMessage()));
+  }
+
   @ExceptionHandler(BadRequestException.class)
   public ResponseEntity<ErrorResponse> handleBadRequest(BadRequestException ex) {
     return ResponseEntity.badRequest()

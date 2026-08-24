@@ -38,6 +38,9 @@ export type UserResponse = {
   email: string;
   displayName: string | null;
   createdAt: string;
+  /** Consecutive days with at least one review. Drives the flame on the learn tab. */
+  currentStreakDays: number;
+  longestStreakDays: number;
 };
 
 export type VisaPurpose = "WORK" | "STUDY" | "FAMILY" | "OTHER";
@@ -95,6 +98,49 @@ export type CourseSummary = {
   description: string | null;
   isPremium: boolean;
   cardCount: number;
+};
+
+export type ReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
+
+/** What each button would schedule, in days. Computed server-side — never recomputed here. */
+export type IntervalPreview = Record<Lowercase<ReviewRating>, number>;
+
+export type CardDue = {
+  id: string;
+  frontText: string;
+  /** Already the full answer string, `reading · meaning`. Reveal it, don't assemble it. */
+  backText: string;
+  cardType: string;
+  /** False for a card never shown before — the session labels it "New". */
+  seen: boolean;
+  intervals: IntervalPreview;
+};
+
+export type DueCardsResponse = {
+  courseId: string;
+  courseTitle: string;
+  cards: CardDue[];
+  reviewedCardCount: number;
+  totalCardCount: number;
+  dailyLimit: number;
+  /**
+   * Zero with an empty `cards` means the free allowance is spent; above zero with an empty
+   * `cards` means nothing is due yet. The two need different copy.
+   */
+  reviewsRemainingToday: number;
+  studyStreakDays: number;
+};
+
+export type ReviewResult = {
+  cardId: string;
+  rating: ReviewRating;
+  intervalDays: number;
+  nextReviewDate: string;
+  easeFactor: number;
+  cardStreakCount: number;
+  studyStreakDays: number;
+  longestStreakDays: number;
+  reviewsRemainingToday: number;
 };
 
 type RequestOptions = {
@@ -187,6 +233,17 @@ export const api = {
   /** Includes premium courses — the learn tab dims them rather than hiding them. */
   getCourses: (topic?: string) =>
     request<CourseSummary[]>(topic ? `/courses?topic=${topic}` : "/courses"),
+
+  /** A review session for one deck: due cards first, then new ones, capped for free users. */
+  getDueCards: (courseId: string) =>
+    request<DueCardsResponse>(`/courses/${courseId}/due`),
+
+  /** Throws an ApiError with `requiresPremium` once the daily allowance is spent. */
+  submitReview: (cardId: string, rating: ReviewRating) =>
+    request<ReviewResult>(`/reviews/${cardId}`, {
+      method: "POST",
+      body: { rating },
+    }),
 
   setTaskCompleted: (taskId: string, completed: boolean) =>
     request<UserChecklistTaskResponse>(`/checklist-tasks/${taskId}`, {

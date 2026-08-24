@@ -39,6 +39,20 @@ public class User {
 	@JoinColumn(name = "checklist_template_id")
 	private ChecklistTemplate checklistTemplate;
 
+	/**
+	 * Consecutive days with at least one review. Kept here rather than derived from
+	 * user_card_progress, which only remembers the latest review per card.
+	 */
+	@Column(name = "current_streak_days", nullable = false)
+	private int currentStreakDays;
+
+	@Column(name = "longest_streak_days", nullable = false)
+	private int longestStreakDays;
+
+	/** The last day the user reviewed anything, in the app's timezone. */
+	@Column(name = "last_studied_on")
+	private LocalDate lastStudiedOn;
+
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	@CurrentTimestamp(event = EventType.INSERT)
 	private Instant createdAt;
