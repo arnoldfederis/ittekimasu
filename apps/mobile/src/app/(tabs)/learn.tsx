@@ -7,16 +7,24 @@ import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ScreenHeader } from "@/components/screen-header";
 import { useThemeColors } from "@/constants/theme";
 import { api, type CourseSummary, type DueCardsResponse } from "@/lib/api";
+import { usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
 type Streaks = { current: number; longest: number };
 
 export default function LearnScreen() {
   const colors = useThemeColors();
+  const { isPremium, entitlement } = usePurchases();
   const [courses, setCourses] = useState<CourseSummary[] | null>(null);
-  const [session, setSession] = useState<DueCardsResponse | null>(null);
+  const [sessions, setSessions] = useState<Record<string, DueCardsResponse>>(
+    {},
+  );
   const [streaks, setStreaks] = useState<Streaks>({ current: 0, longest: 0 });
   const [failed, setFailed] = useState(false);
+
+  // The server is what actually unlocks a deck; the SDK flag only covers the seconds between
+  // paying and the webhook landing.
+  const premium = entitlement?.premium || isPremium;
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -29,14 +37,25 @@ export default function LearnScreen() {
       setCourses(list);
 
       // The session summary carries the due count, the deck progress and the daily
-      // allowance — none of which the course list knows about.
-      const active = list.find((course) => !course.isPremium);
-      setSession(active ? await api.getDueCards(active.id) : null);
+      // allowance — none of which the course list knows about. A premium deck 402s for a
+      // free user, so only ask for the ones this account can open.
+      const unlocked = list.filter((course) => !course.isPremium || premium);
+      const loaded = await Promise.all(
+        unlocked.map((course) => api.getDueCards(course.id).catch(() => null)),
+      );
+
+      setSessions(
+        Object.fromEntries(
+          loaded
+            .filter((session) => session !== null)
+            .map((session) => [session.courseId, session]),
+        ),
+      );
     } catch (error) {
       setFailed(true);
       toast.fromError(error, "Couldn't load your courses.");
     }
-  }, []);
+  }, [premium]);
 
   // Refetch on focus so finishing a session updates the streak and the due count on the way
   // back, rather than leaving a stale "Review 12 cards" button behind.
@@ -46,8 +65,11 @@ export default function LearnScreen() {
     }, [load]),
   );
 
-  const free = courses?.filter((course) => !course.isPremium) ?? [];
-  const locked = courses?.filter((course) => course.isPremium) ?? [];
+  const unlocked =
+    courses?.filter((course) => !course.isPremium || premium) ?? [];
+  const locked = premium
+    ? []
+    : (courses?.filter((course) => course.isPremium) ?? []);
 
   return (
     <ScrollView
@@ -98,11 +120,11 @@ export default function LearnScreen() {
           </Card>
         ) : null}
 
-        {free.map((course) => (
+        {unlocked.map((course) => (
           <ActiveCourseCard
             course={course}
             key={course.id}
-            session={session?.courseId === course.id ? session : null}
+            session={sessions[course.id] ?? null}
           />
         ))}
 
@@ -120,12 +142,7 @@ export default function LearnScreen() {
           <Card
             className="opacity-65"
             key={course.id}
-            onPress={() =>
-              toast.info(
-                "Premium deck",
-                `${course.title} unlocks with premium, along with unlimited daily reviews.`,
-              )
-            }
+            onPress={() => router.push("/paywall")}
             tone="sunken"
           >
             <View className="flex-row items-start gap-3">

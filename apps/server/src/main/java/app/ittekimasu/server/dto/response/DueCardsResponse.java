@@ -17,6 +17,7 @@ public record DueCardsResponse(
     /** Cards in the deck the learner has reviewed at least once, for the progress bar. */
     int reviewedCardCount,
     int totalCardCount,
-    int dailyLimit,
-    int reviewsRemainingToday,
+    /** Null for premium: unlimited. A sentinel would eventually render as a real number. */
+    Integer dailyLimit,
+    Integer reviewsRemainingToday,
     int studyStreakDays) {}

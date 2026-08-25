@@ -33,8 +33,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class ReviewService {
 
-  /** Free tier. Premium lifts this in step 6; the check stays server-side either way. */
+  /** Free tier. Premium has no daily cap; the check stays server-side either way. */
   public static final int FREE_DAILY_REVIEW_LIMIT = 20;
+
+  /** How many cards a premium session hands over at once. Not a cap, just a sitting. */
+  static final int PREMIUM_SESSION_SIZE = 50;
 
   /**
    * One day boundary for the whole app rather than a per-user timezone. Everyone here is
@@ -47,18 +50,21 @@ public class ReviewService {
   private final UserCardProgressRepository progressRepository;
   private final UserRepository userRepository;
   private final SpacedRepetitionService scheduler;
+  private final EntitlementService entitlementService;
 
   public ReviewService(
       CourseRepository courseRepository,
       CardRepository cardRepository,
       UserCardProgressRepository progressRepository,
       UserRepository userRepository,
-      SpacedRepetitionService scheduler) {
+      SpacedRepetitionService scheduler,
+      EntitlementService entitlementService) {
     this.courseRepository = courseRepository;
     this.cardRepository = cardRepository;
     this.progressRepository = progressRepository;
     this.userRepository = userRepository;
     this.scheduler = scheduler;
+    this.entitlementService = entitlementService;
   }
 
   @Transactional(readOnly = true)
@@ -67,16 +73,22 @@ public class ReviewService {
         courseRepository
             .findById(courseId)
             .orElseThrow(() -> new ResourceNotFoundException("Course", courseId));
-    requireAccess(course);
+
+    boolean premium = entitlementService.isPremium(userId);
+    requireAccess(course, premium);
 
     LocalDate today = LocalDate.now(APP_ZONE);
-    int remaining = remainingReviews(userId, today);
+    Integer remaining = remainingReviews(userId, today, premium);
+
+    // Premium is unlimited per day, but a session still needs a bound: handing back 500 cards
+    // is not a session, it is a wall.
+    int sessionSize = remaining == null ? PREMIUM_SESSION_SIZE : remaining;
 
     // Asking for zero rows is a wasted query, and PageRequest rejects a size of 0 anyway.
     List<Card> due =
-        remaining == 0
+        sessionSize == 0
             ? List.of()
-            : cardRepository.findDueCards(userId, courseId, today, PageRequest.of(0, remaining));
+            : cardRepository.findDueCards(userId, courseId, today, PageRequest.of(0, sessionSize));
 
     Map<UUID, UserCardProgress> progressByCard = progressFor(userId, due);
 
@@ -91,7 +103,7 @@ public class ReviewService {
         cards,
         progressRepository.countByUserIdAndCardCourseId(userId, courseId),
         cardRepository.countByCourseId(courseId),
-        FREE_DAILY_REVIEW_LIMIT,
+        premium ? null : FREE_DAILY_REVIEW_LIMIT,
         remaining,
         managedUser(userId).getCurrentStreakDays());
   }
@@ -102,7 +114,9 @@ public class ReviewService {
         cardRepository
             .findById(cardId)
             .orElseThrow(() -> new ResourceNotFoundException("Card", cardId));
-    requireAccess(card.getCourse());
+
+    boolean premium = entitlementService.isPremium(userId);
+    requireAccess(card.getCourse(), premium);
 
     User user = managedUser(userId);
     LocalDate today = LocalDate.now(APP_ZONE);
@@ -116,7 +130,8 @@ public class ReviewService {
     boolean alreadyCountedToday =
         progress != null && !progress.getLastReviewedAt().isBefore(startOfDay(today));
 
-    if (!alreadyCountedToday && remainingReviews(userId, today) == 0) {
+    Integer remaining = remainingReviews(userId, today, premium);
+    if (!alreadyCountedToday && remaining != null && remaining == 0) {
       throw new PaymentRequiredException(
           "That's %d reviews today — the free daily limit. Come back tomorrow, or go unlimited with premium."
               .formatted(FREE_DAILY_REVIEW_LIMIT));
@@ -148,7 +163,7 @@ public class ReviewService {
         user.getCurrentStreakDays(),
         user.getLongestStreakDays(),
         // The save above may have consumed a slot, so count again rather than subtracting.
-        remainingReviews(userId, today));
+        remainingReviews(userId, today, premium));
   }
 
   /**
@@ -166,7 +181,11 @@ public class ReviewService {
     user.setLongestStreakDays(Math.max(user.getLongestStreakDays(), user.getCurrentStreakDays()));
   }
 
-  private int remainingReviews(UUID userId, LocalDate today) {
+  /** Null means unlimited. Premium never runs the count query at all. */
+  private Integer remainingReviews(UUID userId, LocalDate today, boolean premium) {
+    if (premium) {
+      return null;
+    }
     int reviewedToday =
         progressRepository.countByUserIdAndLastReviewedAtGreaterThanEqual(
             userId, startOfDay(today));
@@ -174,13 +193,13 @@ public class ReviewService {
   }
 
   /**
-   * Premium is decided here, from the database, never from a flag the client sends. Until the
-   * Entitlement table lands in step 6 every account is free, so a locked deck is a hard 402.
+   * Premium is decided from the database via EntitlementService, never from a flag the client
+   * sends. The mobile app knows its own entitlement from the RevenueCat SDK, but that is for
+   * rendering — this is the gate.
    */
-  private void requireAccess(Course course) {
-    if (course.isPremium()) {
-      throw new PaymentRequiredException(
-          "%s is a premium deck.".formatted(course.getTitle()));
+  private void requireAccess(Course course, boolean premium) {
+    if (course.isPremium() && !premium) {
+      throw new PaymentRequiredException("%s is a premium deck.".formatted(course.getTitle()));
     }
   }
 

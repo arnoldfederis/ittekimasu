@@ -100,6 +100,14 @@ export type CourseSummary = {
   cardCount: number;
 };
 
+export type EntitlementResponse = {
+  premium: boolean;
+  /** ISO instant, or null on the free plan. */
+  expiresAt: string | null;
+  /** Null means unlimited — never render it as a number without checking. */
+  dailyReviewLimit: number | null;
+};
+
 export type ReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
 
 /** What each button would schedule, in days. Computed server-side — never recomputed here. */
@@ -122,12 +130,13 @@ export type DueCardsResponse = {
   cards: CardDue[];
   reviewedCardCount: number;
   totalCardCount: number;
-  dailyLimit: number;
+  /** Null for premium: unlimited. */
+  dailyLimit: number | null;
   /**
    * Zero with an empty `cards` means the free allowance is spent; above zero with an empty
-   * `cards` means nothing is due yet. The two need different copy.
+   * `cards` means nothing is due yet. The two need different copy. Null means unlimited.
    */
-  reviewsRemainingToday: number;
+  reviewsRemainingToday: number | null;
   studyStreakDays: number;
 };
 
@@ -140,7 +149,8 @@ export type ReviewResult = {
   cardStreakCount: number;
   studyStreakDays: number;
   longestStreakDays: number;
-  reviewsRemainingToday: number;
+  /** Null for premium: unlimited. */
+  reviewsRemainingToday: number | null;
 };
 
 type RequestOptions = {
@@ -206,6 +216,12 @@ export const api = {
 
   /** Required by App Store review guideline 5.1.1(v). */
   deleteMe: () => request<void>("/users/me", { method: "DELETE" }),
+
+  /**
+   * The authoritative premium check. The RevenueCat SDK answers faster locally, but only
+   * this one matches what the API will actually let the user do.
+   */
+  getEntitlement: () => request<EntitlementResponse>("/users/me/entitlement"),
 
   /** Includes unavailable templates — the picker greys them out rather than hiding them. */
   getTemplates: (purpose?: VisaPurpose) =>

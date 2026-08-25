@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
 import { radius, useIsDark, useThemeColors } from "@/constants/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { PurchasesProvider } from "@/lib/purchases";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -16,7 +17,10 @@ export default function RootLayout() {
     // sit inside a GestureHandlerRootView or toasts render but never dismiss by swipe.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        <Chrome />
+        {/* Inside AuthProvider: RevenueCat is identified by the Firebase UID. */}
+        <PurchasesProvider>
+          <Chrome />
+        </PurchasesProvider>
       </AuthProvider>
     </GestureHandlerRootView>
   );
@@ -110,6 +114,9 @@ function RootNavigator() {
           name="review/[courseId]"
           options={{ presentation: "modal" }}
         />
+        {/* A modal too: the paywall interrupts something, and it must be dismissable. */}
+        <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
+        <Stack.Screen name="settings" />
       </Stack.Protected>
     </Stack>
   );
