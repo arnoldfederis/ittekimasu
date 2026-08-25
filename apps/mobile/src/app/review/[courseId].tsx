@@ -114,10 +114,10 @@ export default function ReviewScreen() {
         setIndex((current) => current + 1);
       } catch (error) {
         if (error instanceof ApiError && error.requiresPremium) {
-          // Step 6 opens the paywall here. Ending the session is the honest fallback —
-          // leaving the card on screen would invite a tap that can only fail again.
-          toast.info("That's today's reviews", error.message);
+          // End the session before opening the paywall: leaving the card on screen would
+          // invite a tap that can only fail again.
           setIndex(cards.length);
+          router.push("/paywall");
           return;
         }
         toast.fromError(error, "Couldn't save that answer.");

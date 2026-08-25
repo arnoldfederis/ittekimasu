@@ -18,4 +18,5 @@ public record ReviewResultResponse(
     /** Consecutive days the learner has reviewed something — the flame. */
     int studyStreakDays,
     int longestStreakDays,
-    int reviewsRemainingToday) {}
+    /** Null for premium: unlimited. */
+    Integer reviewsRemainingToday) {}

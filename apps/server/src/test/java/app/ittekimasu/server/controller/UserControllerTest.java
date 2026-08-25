@@ -12,7 +12,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import app.ittekimasu.server.config.SecurityConfig;
 import app.ittekimasu.server.config.WebMvcConfig;
 import app.ittekimasu.server.entity.User;
+import app.ittekimasu.server.dto.response.EntitlementResponse;
 import app.ittekimasu.server.security.FirebasePrincipal;
+import app.ittekimasu.server.service.EntitlementService;
 import app.ittekimasu.server.service.UserService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
@@ -39,6 +41,7 @@ class UserControllerTest {
 
   @MockitoBean private FirebaseAuth firebaseAuth;
   @MockitoBean private UserService userService;
+  @MockitoBean private EntitlementService entitlementService;
 
   @BeforeEach
   void stubFirebase() throws Exception {
@@ -95,6 +98,38 @@ class UserControllerTest {
         .andExpect(status().isNoContent());
 
     verify(userService).deleteByFirebaseUid(eq("firebase-uid-123"));
+  }
+
+  @Test
+  void reportsAFreeUsersDailyLimit() throws Exception {
+    given(userService.findOrCreate(any())).willReturn(sampleUser());
+    given(entitlementService.getEntitlement(eq(USER_ID), eq(20)))
+        .willReturn(new EntitlementResponse(false, null, 20));
+
+    mockMvc
+        .perform(
+            get("/api/users/me/entitlement")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.premium").value(false))
+        .andExpect(jsonPath("$.dailyReviewLimit").value(20));
+  }
+
+  /** Premium reports a null limit, never a sentinel that could render as "-1 cards a day". */
+  @Test
+  void reportsPremiumAsUnlimited() throws Exception {
+    given(userService.findOrCreate(any())).willReturn(sampleUser());
+    given(entitlementService.getEntitlement(eq(USER_ID), eq(20)))
+        .willReturn(
+            new EntitlementResponse(true, Instant.parse("2027-08-20T00:00:00Z"), null));
+
+    mockMvc
+        .perform(
+            get("/api/users/me/entitlement")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.premium").value(true))
+        .andExpect(jsonPath("$.dailyReviewLimit").doesNotExist());
   }
 
   private User sampleUser() {

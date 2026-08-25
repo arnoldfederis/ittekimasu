@@ -56,6 +56,13 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 - Validation errors render **amber, never red** — same positive-reinforcement rule as the rest of the app.
 - Reference for toast/animation patterns: https://github.com/emilkowalski/skills (Emil Kowalski, author of Sonner). Install as agent skills with `npx skills@latest add emilkowalski/skills`.
 
+### RevenueCat (apps/mobile/src/lib/purchases.tsx)
+- `react-native-purchases` only. **Not `react-native-purchases-ui`** — its paywall is designed in the RevenueCat dashboard, which would throw away the app's own design system and palette. The paywall here is ours.
+- `Purchases.configure` runs **once per launch**, in its own effect. Re-configuring on every auth change resets cached customer info and refetches offerings for nothing. `logIn`/`logOut` is the per-user part.
+- `EXPO_PUBLIC_REVENUECAT_API_KEY` is the *public* SDK key and is meant to ship in the bundle. The secret API key must never appear in the app.
+- The SDK's `isPremium` is for **rendering only** — showing an unlocked deck the instant someone pays. Every gate asks the server.
+- Adding it needs a dev-client rebuild: `pod install` then `xcodebuild`. Metro alone will throw "native module not found".
+
 ### Mobile build gotchas (each cost real debugging time)
 - **`pod install` needs a UTF-8 locale.** Without it: `Unicode Normalization not appropriate for ASCII-8BIT`. Run `LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 pod install`. This is also why `expo run:ios` fails at its pod step — build with `xcodebuild` directly when it does.
 - **Never delete `ios/build` on its own** — it holds the React codegen output produced during `pod install`. If you do, re-run `pod install` before building.
@@ -97,7 +104,10 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 - `users.current_streak_days` / `longest_streak_days` / `last_studied_on` — the study-day streak.
   - Not derivable from `user_card_progress` (only the latest review per card is kept, so drilling the same 20 cards daily would look like one study day). Cheaper than a review-history table.
   - A gap of two or more days restarts at **1**, not 0 — the learner did study today and the card should say so.
-- `Entitlement` (is_premium, revenuecat_customer_id, expires_at) — one per user
+- `Entitlement` (is_premium, revenuecat_customer_id, expires_at, last_event_type) — one row per user, unique on user_id, written ONLY by the webhook
+  - The RevenueCat **entitlement identifier is `ittekimasu_pro`** (`EntitlementService.PREMIUM_ENTITLEMENT_ID` and `lib/purchases.tsx`). Products are `monthly` and `annual` packages on the `default` offering.
+  - The app calls `Purchases.logIn(firebaseUid)`, so the webhook's `app_user_id` **is the Firebase UID** — that is the whole join. Configure anonymously and skip the logIn and purchases land on an id the server cannot match to anyone.
+  - `expires_at` is display-only. `is_premium` gates access, because a past expiry with no EXPIRATION event yet just means the webhook is in flight.
 
 ## Endpoints
 Paths below are as declared on the controller. Every one is served under `/api` (see WebMvcConfig) — `/users/me` is really `GET /api/users/me`.
@@ -133,14 +143,22 @@ New cards start at ease 2.5 and interval 1, so the first non-AGAIN answer takes 
 - Both endpoints go through `ReviewService`; `GET /courses/{id}/due` returns **due cards first (soonest first), then unseen ones**, so a backlog is cleared before new material is piled on top of it.
 - Every due card carries `intervals` (what each of the four buttons would schedule). Computed server-side so the algorithm has exactly one implementation — the client must never recompute it.
 - Day boundary is **`Asia/Tokyo` for everyone** (`ReviewService.APP_ZONE`), not a per-user timezone. A settings screen, not an MVP.
-- Free cap is `ReviewService.FREE_DAILY_REVIEW_LIMIT = 20`, enforced server-side. Past it, `POST /reviews/{cardId}` returns **402**, which the client treats as the paywall trigger (`ApiError.requiresPremium`). A premium deck returns 402 for the same reason. Until `Entitlement` lands in step 6 every account is free, so those 402s are unconditional.
+- Free cap is `ReviewService.FREE_DAILY_REVIEW_LIMIT = 20`, enforced server-side. Past it, `POST /reviews/{cardId}` returns **402**, which the client treats as the paywall trigger (`ApiError.requiresPremium`). A premium deck returns 402 for the same reason. Premium skips both checks — `ReviewService` asks `EntitlementService.isPremium`, never the client.
+- `dailyLimit` / `reviewsRemainingToday` are **null for premium**, not a sentinel like -1: a sentinel eventually renders inside "{limit} cards a day".
+- A premium session is still capped at `PREMIUM_SESSION_SIZE = 50` cards. Unlimited per day, but 500 cards in one sitting is a wall, not a session.
 - `DueCardsResponse` returns counts, not just cards: empty `cards` with `reviewsRemainingToday > 0` means "nothing due", with `0` it means "allowance spent". Different copy, so the client needs to tell them apart.
 
 ## Entitlement sync (EntitlementService)
-Webhook events INITIAL_PURCHASE / RENEWAL / UNCANCELLATION → `isPremium = true`.
-CANCELLATION / EXPIRATION / BILLING_ISSUE → `isPremium = false`.
+Webhook events INITIAL_PURCHASE / RENEWAL / UNCANCELLATION / PRODUCT_CHANGE / SUBSCRIPTION_EXTENDED → `isPremium = true`.
+CANCELLATION / EXPIRATION / BILLING_ISSUE / REFUND / SUBSCRIPTION_PAUSED → `isPremium = false`.
 Premium is ALWAYS checked server-side from the DB, never from a client-supplied flag.
-`RevenueCatEventRequest` needs `@JsonIgnoreProperties(ignoreUnknown = true)`.
+`RevenueCatEventRequest` needs `@JsonIgnoreProperties(ignoreUnknown = true)` — RevenueCat adds payload fields without warning, and a strict mapper would start 400-ing live webhooks the day they do.
+
+- `POST /webhooks/revenuecat` is the **only unauthenticated route** in the app, so the shared secret is the entire door. It is compared with `MessageDigest.isEqual` (constant time) against `revenuecat.webhook-authorization` (env `REVENUECAT_WEBHOOK_AUTHORIZATION`).
+- **Unset secret rejects everything.** Treating "unset" as "allow" would turn a missing env var in production into a free-premium endpoint that looks fine until someone finds it.
+- Unknown event types and unknown `app_user_id`s are logged and **answered 200**. Any 4xx makes RevenueCat retry a payload that can never succeed, and eventually disables the webhook.
+- Events whose `entitlement_ids` don't include `ittekimasu_pro` are ignored, so a second product later can't move this flag.
+- After a purchase the client polls `GET /users/me/entitlement` for a few seconds (`waitForServerEntitlement`). The purchase is instant on-device but premium is decided from *our* database, so without the poll a paying user can still hit 402.
 
 ## Free vs premium
 - **Free:** complete checklist for the user's own visa (all tasks), JLPT N5 deck, 20 reviews/day, streaks, reminders
@@ -162,8 +180,10 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 - `(tabs)/checklist.tsx` — full checklist grouped by category
 - `(tabs)/learn.tsx` — streak card, active deck with progress and due count, dimmed premium decks. Refetches on focus (`useFocusEffect`), or finishing a session leaves a stale "Review 12 cards" button behind.
 - `review/[courseId].tsx` — the flashcard session. A **modal, not a tab**: one task the learner starts and finishes, and the tab bar would invite them to wander out half-done.
-- `(tabs)/profile.tsx` — stats, plan status, settings
-- `paywall.tsx`
+- `(tabs)/profile.tsx` — avatar initial, plan card (free shows the cap + Upgrade, premium shows the renewal date), three stat tiles, account rows
+- `paywall.tsx` — modal. Prices come from `product.priceString`, never hardcoded: already localised, and already right when App Store Connect pricing changes. Annual preselected.
+- `settings.tsx` — manage subscription (deep-links to Apple's own screen; there is no in-app cancel), restore purchases, legal links, sign out, delete account.
+  - Privacy and terms are **hosted pages**, not in-app screens — App Store Connect needs a public privacy URL to submit at all. `LEGAL_BASE_URL` must be live before submission or the links 404 into a rejection.
 
 Design principle carried from a prior project: positive reinforcement only. No red X, no "wrong", no punitive streak loss. "Again" is a neutral scheduling signal.
 - The rating buttons are **Again = neutral ink, Hard = amber, Good = green, Easy = teal**. Deliberately no red on "Again", per the palette rule in `global.css`.
