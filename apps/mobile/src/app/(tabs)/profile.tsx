@@ -8,6 +8,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { api, type UserResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useChecklist } from "@/lib/checklist";
+import { formatReminderHour, useNotifications } from "@/lib/notifications";
 import { usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
@@ -15,6 +16,7 @@ export default function ProfileScreen() {
   const { user } = useAuth();
   const { checklist } = useChecklist();
   const { entitlement, isPremium, refresh } = usePurchases();
+  const { reminderHour } = useNotifications();
   const [me, setMe] = useState<UserResponse | null>(null);
   const [cardsLearned, setCardsLearned] = useState<number | null>(null);
 
@@ -149,6 +151,13 @@ export default function ProfileScreen() {
                 ? formatDate(checklist.targetMoveDate)
                 : "Not set"
             }
+          />
+          <ListRow
+            icon="bell"
+            onPress={() => router.push("/reminder-time")}
+            showChevron
+            title="Reminder time"
+            value={formatReminderHour(reminderHour)}
           />
           <ListRow
             icon="gearshape"

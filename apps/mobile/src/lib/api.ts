@@ -41,6 +41,10 @@ export type UserResponse = {
   /** Consecutive days with at least one review. Drives the flame on the learn tab. */
   currentStreakDays: number;
   longestStreakDays: number;
+  /** 0-23, or null when the daily reminder is off. */
+  reminderHour: number | null;
+  /** IANA zone the hour is expressed in, e.g. Asia/Tokyo. */
+  reminderTimezone: string | null;
 };
 
 export type VisaPurpose = "WORK" | "STUDY" | "FAMILY" | "OTHER";
@@ -222,6 +226,16 @@ export const api = {
    * this one matches what the API will actually let the user do.
    */
   getEntitlement: () => request<EntitlementResponse>("/users/me/entitlement"),
+
+  /** A null hour switches the daily reminder off. */
+  updateReminders: (
+    reminderHour: number | null,
+    reminderTimezone: string | null,
+  ) =>
+    request<UserResponse>("/users/me/reminders", {
+      method: "PATCH",
+      body: { reminderHour, reminderTimezone },
+    }),
 
   /** Includes unavailable templates — the picker greys them out rather than hiding them. */
   getTemplates: (purpose?: VisaPurpose) =>

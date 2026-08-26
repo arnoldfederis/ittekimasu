@@ -101,7 +101,11 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
           const { customerInfo } = await Purchases.logIn(user.uid);
           if (!cancelled) setIsPremium(readPremium(customerInfo));
         } else {
-          const customerInfo = await Purchases.logOut();
+          // logOut throws when the customer is already anonymous, which is the normal state
+          // on a cold start at the sign-in screen. Read the cached info instead of calling it.
+          const customerInfo = (await Purchases.isAnonymous())
+            ? await Purchases.getCustomerInfo()
+            : await Purchases.logOut();
           if (!cancelled) setIsPremium(readPremium(customerInfo));
         }
 

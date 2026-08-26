@@ -6,10 +6,15 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
 import { radius, useIsDark, useThemeColors } from "@/constants/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { initCrashReporting } from "@/lib/crash-reporting";
+import { NotificationsProvider } from "@/lib/notifications";
 import { PurchasesProvider } from "@/lib/purchases";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
+
+// Module scope, not an effect: a crash in the first render is exactly what this is for.
+initCrashReporting();
 
 export default function RootLayout() {
   return (
@@ -17,9 +22,11 @@ export default function RootLayout() {
     // sit inside a GestureHandlerRootView or toasts render but never dismiss by swipe.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AuthProvider>
-        {/* Inside AuthProvider: RevenueCat is identified by the Firebase UID. */}
+        {/* Inside AuthProvider: RevenueCat and OneSignal are both keyed by the Firebase UID. */}
         <PurchasesProvider>
-          <Chrome />
+          <NotificationsProvider>
+            <Chrome />
+          </NotificationsProvider>
         </PurchasesProvider>
       </AuthProvider>
     </GestureHandlerRootView>
@@ -117,6 +124,7 @@ function RootNavigator() {
         {/* A modal too: the paywall interrupts something, and it must be dismissable. */}
         <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="reminder-time" />
       </Stack.Protected>
     </Stack>
   );

@@ -1,4 +1,17 @@
+import { config as loadEnv } from "dotenv";
+import path from "node:path";
 import type { ExpoConfig } from "expo/config";
+
+/**
+ * Load .env before anything below reads it.
+ *
+ * Expo's CLI loads .env for the BUNDLER, but that happens after this file is evaluated and
+ * its config plugins run. Without this line `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID` is undefined
+ * during `expo export` and during Xcode's "Bundle React Native code and images" phase, the
+ * Google plugin receives `{}`, and the build dies with "Missing `iosUrlScheme`". Metro dev
+ * builds skip that phase, which is why this only shows up in a real build.
+ */
+loadEnv({ path: path.resolve(__dirname, ".env") });
 
 /**
  * Dynamic config, not app.json, for one reason: the Google Sign-In plugin needs an iOS URL
@@ -54,6 +67,23 @@ const config: ExpoConfig = {
       // Without iosUrlScheme the native SDK throws
       // "Your app is missing support for the following URL schemes".
       iosUrlScheme ? { iosUrlScheme } : {},
+    ],
+    [
+      // Written into ios/sentry.properties at prebuild. Without org and project the build's
+      // "Upload Debug Symbols to Sentry" phase dies with "An organization ID or slug is
+      // required" — and that phase runs on every build, including local Debug ones.
+      // The auth token is NOT here: it is a secret, and belongs in the environment.
+      "@sentry/react-native",
+      {
+        organization: process.env.SENTRY_ORG ?? "ittekimasu",
+        project: process.env.SENTRY_PROJECT ?? "ittekimasu",
+      },
+    ],
+    [
+      // Adds the iOS Notification Service Extension and the entitlements OneSignal needs.
+      // Changing `mode` requires a prebuild and a rebuild, not just a Metro restart.
+      "onesignal-expo-plugin",
+      { mode: process.env.APP_ENV === "production" ? "production" : "development" },
     ],
     [
       "expo-splash-screen",

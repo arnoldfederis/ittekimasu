@@ -6,6 +6,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -27,6 +28,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -130,6 +132,56 @@ class UserControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.premium").value(true))
         .andExpect(jsonPath("$.dailyReviewLimit").doesNotExist());
+  }
+
+  @Test
+  void setsTheDailyReminder() throws Exception {
+    User updated = sampleUser();
+    updated.setReminderHour((short) 20);
+    updated.setReminderTimezone("Asia/Tokyo");
+    given(userService.findOrCreate(any())).willReturn(sampleUser());
+    given(userService.updateReminders(eq(USER_ID), eq(20), eq("Asia/Tokyo")))
+        .willReturn(updated);
+
+    mockMvc
+        .perform(
+            patch("/api/users/me/reminders")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reminderHour\":20,\"reminderTimezone\":\"Asia/Tokyo\"}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reminderHour").value(20))
+        .andExpect(jsonPath("$.reminderTimezone").value("Asia/Tokyo"));
+  }
+
+  /** Null is a real value here — it means "turn reminders off", not "field missing". */
+  @Test
+  void turnsTheDailyReminderOff() throws Exception {
+    given(userService.findOrCreate(any())).willReturn(sampleUser());
+    given(userService.updateReminders(eq(USER_ID), eq(null), eq(null)))
+        .willReturn(sampleUser());
+
+    mockMvc
+        .perform(
+            patch("/api/users/me/reminders")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reminderHour\":null,\"reminderTimezone\":null}"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.reminderHour").doesNotExist());
+  }
+
+  @Test
+  void rejectsAnHourOutsideTheDay() throws Exception {
+    given(userService.findOrCreate(any())).willReturn(sampleUser());
+
+    mockMvc
+        .perform(
+            patch("/api/users/me/reminders")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + VALID_TOKEN)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"reminderHour\":25,\"reminderTimezone\":\"Asia/Tokyo\"}"))
+        .andExpect(status().isBadRequest());
   }
 
   private User sampleUser() {

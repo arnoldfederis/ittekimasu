@@ -53,6 +53,14 @@ public class User {
 	@Column(name = "last_studied_on")
 	private LocalDate lastStudiedOn;
 
+	/** 0-23 in {@link #reminderTimezone}. Null means the daily reminder is off. */
+	@Column(name = "reminder_hour")
+	private Short reminderHour;
+
+	/** IANA zone the reminder hour is expressed in, e.g. Asia/Tokyo. */
+	@Column(name = "reminder_timezone", length = 64)
+	private String reminderTimezone;
+
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	@CurrentTimestamp(event = EventType.INSERT)
 	private Instant createdAt;
