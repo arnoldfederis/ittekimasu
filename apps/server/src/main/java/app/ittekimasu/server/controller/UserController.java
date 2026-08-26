@@ -1,11 +1,13 @@
 package app.ittekimasu.server.controller;
 
+import app.ittekimasu.server.dto.request.UpdateRemindersRequest;
 import app.ittekimasu.server.dto.response.EntitlementResponse;
 import app.ittekimasu.server.dto.response.UserResponse;
 import app.ittekimasu.server.security.FirebasePrincipal;
 import app.ittekimasu.server.service.EntitlementService;
 import app.ittekimasu.server.service.ReviewService;
 import app.ittekimasu.server.service.UserService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +27,18 @@ public class UserController {
   @GetMapping("/me")
   public UserResponse me(@AuthenticationPrincipal FirebasePrincipal principal) {
     return UserResponse.from(userService.findOrCreate(principal));
+  }
+
+  /** Sets or clears the daily reminder. A null hour switches it off. */
+  @PatchMapping("/me/reminders")
+  public UserResponse updateReminders(
+      @AuthenticationPrincipal FirebasePrincipal principal,
+      @Valid @RequestBody UpdateRemindersRequest request) {
+    return UserResponse.from(
+        userService.updateReminders(
+            userService.findOrCreate(principal).getId(),
+            request.reminderHour(),
+            request.reminderTimezone()));
   }
 
   /**

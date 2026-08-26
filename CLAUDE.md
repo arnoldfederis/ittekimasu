@@ -56,6 +56,21 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 - Validation errors render **amber, never red** — same positive-reinforcement rule as the rest of the app.
 - Reference for toast/animation patterns: https://github.com/emilkowalski/skills (Emil Kowalski, author of Sonner). Install as agent skills with `npx skills@latest add emilkowalski/skills`.
 
+### OneSignal (apps/mobile/src/lib/notifications.tsx)
+- **The permission prompt fires after the first completed review session, never on launch.** Asking before the app has shown any value roughly halves opt-in. An AsyncStorage flag (`notifications.prompted`) makes it once-only — iOS gives you exactly one chance at the system dialog.
+- `OneSignal.login(firebaseUid)` — the **same external id as RevenueCat**, so a push campaign and a subscription event describe the same person with no lookup table between them.
+- Reminder time is stored on `users.reminder_hour` + `reminder_timezone` and mirrored to OneSignal **tags**, not a scheduled push. A tag alone dies on reinstall; the row survives and the app re-applies the tag on launch. Delivery lives in a dashboard campaign targeting the `reminder_hour` segment, so copy and cadence change without an app release.
+- The hour is the **user's** timezone, not `APP_ZONE`. Half these users aren't in Japan yet, and 8pm has to mean their 8pm.
+- Accepting the prompt defaults the reminder to 20:00 rather than leaving it off — but a reminder nobody chose is a surprise, so the profile row makes it obvious and killable.
+- Needs a **prebuild**: `onesignal-expo-plugin` adds the iOS Notification Service Extension and the `aps-environment` entitlement. Plugin `mode` follows `APP_ENV`.
+
+### Sentry
+- `initCrashReporting()` runs at **module scope** in the root layout, not in an effect — a crash during the first render is exactly what it exists to catch, and an effect runs too late.
+- Disabled in dev and when `EXPO_PUBLIC_SENTRY_DSN` is blank. `sendDefaultPii: false`: nothing here needs a breadcrumb trail through someone's checklist.
+- The plugin's **"Upload Debug Symbols to Sentry" phase runs on EVERY build, Debug included**, and fails the whole build if it can't resolve an org. `app.config.ts` passes `organization`/`project` (env `SENTRY_ORG`/`SENTRY_PROJECT`, defaulting to `ittekimasu`), which prebuild writes into `ios/sentry.properties`.
+- Uploading also needs `SENTRY_AUTH_TOKEN`, which is a **secret** and never goes in `app.config.ts` or `.env`. Local builds skip the upload instead: use **`bun run build:ios`**, which sets `SENTRY_DISABLE_AUTO_UPLOAD=true`. For EAS, add the token with `eas env:create --name SENTRY_AUTH_TOKEN --visibility secret`.
+- Never hand-edit `ios/sentry.properties` — `expo prebuild` regenerates the whole `ios/` directory and throws it away.
+
 ### RevenueCat (apps/mobile/src/lib/purchases.tsx)
 - `react-native-purchases` only. **Not `react-native-purchases-ui`** — its paywall is designed in the RevenueCat dashboard, which would throw away the app's own design system and palette. The paywall here is ours.
 - `Purchases.configure` runs **once per launch**, in its own effect. Re-configuring on every auth change resets cached customer info and refetches offerings for nothing. `logIn`/`logOut` is the per-user part.
@@ -101,6 +116,7 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - A row exists only once the card has been reviewed. An unseen card is the **absence** of a row, which is why the due query is a LEFT JOIN and not a bulk insert when a deck is unlocked.
   - `streak_count` is per-card (consecutive non-AGAIN answers). The **day** streak lives on `users` — see below.
   - `last_reviewed_at` drives the free daily cap. Only the latest review per card survives, so the cap counts **distinct cards touched today**: re-rating a card you already answered today is free.
+- `users.reminder_hour` (0-23, null = off) / `reminder_timezone` — the daily push reminder. See the OneSignal section for why this lives in the database rather than only as a tag.
 - `users.current_streak_days` / `longest_streak_days` / `last_studied_on` — the study-day streak.
   - Not derivable from `user_card_progress` (only the latest review per card is kept, so drilling the same 20 cards daily would look like one study day). Cheaper than a review-history table.
   - A gap of two or more days restarts at **1**, not 0 — the learner did study today and the card should say so.
@@ -117,6 +133,7 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | UserController | GET | `/users/me` | — | `UserResponse` |
 | UserController | DELETE | `/users/me` | — | 204 |
 | UserController | GET | `/users/me/entitlement` | — | `EntitlementResponse` |
+| UserController | PATCH | `/users/me/reminders` | `UpdateRemindersRequest` | `UserResponse` |
 | ChecklistController | GET | `/templates` | query `purpose?` | `List<ChecklistTemplateSummaryResponse>` |
 | ChecklistController | GET | `/templates/{visaType}` | — | `ChecklistTemplateDetailResponse` |
 | ChecklistController | POST | `/users/me/checklist` | `CreateChecklistRequest` | `UserChecklistResponse` |
@@ -182,6 +199,7 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 - `review/[courseId].tsx` — the flashcard session. A **modal, not a tab**: one task the learner starts and finishes, and the tab bar would invite them to wander out half-done.
 - `(tabs)/profile.tsx` — avatar initial, plan card (free shows the cap + Upgrade, premium shows the renewal date), three stat tiles, account rows
 - `paywall.tsx` — modal. Prices come from `product.priceString`, never hardcoded: already localised, and already right when App Store Connect pricing changes. Annual preselected.
+- `reminder-time.tsx` — the daily reminder picker. Waking hours only (7–22), plus Off. A full 24-hour list buries the sensible choices, and nobody wants a 3am nudge.
 - `settings.tsx` — manage subscription (deep-links to Apple's own screen; there is no in-app cancel), restore purchases, legal links, sign out, delete account.
   - Privacy and terms are **hosted pages**, not in-app screens — App Store Connect needs a public privacy URL to submit at all. `LEGAL_BASE_URL` must be live before submission or the links 404 into a rejection.
 

@@ -11,7 +11,10 @@ public record UserResponse(
     Instant createdAt,
     /** Consecutive days with at least one review — the flame on the learn tab. */
     int currentStreakDays,
-    int longestStreakDays) {
+    int longestStreakDays,
+    /** 0-23, or null when the daily reminder is off. */
+    Integer reminderHour,
+    String reminderTimezone) {
 
   public static UserResponse from(User user) {
     return new UserResponse(
@@ -20,6 +23,8 @@ public record UserResponse(
         user.getDisplayName(),
         user.getCreatedAt(),
         user.getCurrentStreakDays(),
-        user.getLongestStreakDays());
+        user.getLongestStreakDays(),
+        user.getReminderHour() == null ? null : user.getReminderHour().intValue(),
+        user.getReminderTimezone());
   }
 }

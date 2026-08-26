@@ -4,6 +4,7 @@ import app.ittekimasu.server.entity.User;
 import app.ittekimasu.server.exception.ResourceNotFoundException;
 import app.ittekimasu.server.repository.UserRepository;
 import app.ittekimasu.server.security.FirebasePrincipal;
+import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,6 +33,27 @@ public class UserService {
     return userRepository
         .findByFirebaseUid(firebaseUid)
         .orElseThrow(() -> new ResourceNotFoundException("User", firebaseUid));
+  }
+
+  /**
+   * Sets or clears the daily reminder.
+   *
+   * <p>Loads the user again inside this transaction: {@link #findOrCreate} hands back a
+   * DETACHED entity, so writing to that one would silently never flush.
+   */
+  @Transactional
+  public User updateReminders(UUID userId, Integer reminderHour, String reminderTimezone) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+    user.setReminderHour(reminderHour == null ? null : reminderHour.shortValue());
+    // Clearing the hour clears the zone with it, rather than leaving a zone pointing at
+    // nothing for the next reader to puzzle over.
+    user.setReminderTimezone(reminderHour == null ? null : reminderTimezone);
+
+    return user;
   }
 
   /** Account deletion, required by App Store review guideline 5.1.1(v). */

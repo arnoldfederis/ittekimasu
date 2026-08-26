@@ -20,6 +20,7 @@ import {
   type DueCardsResponse,
   type ReviewRating,
 } from "@/lib/api";
+import { useNotifications } from "@/lib/notifications";
 import { toast } from "@/lib/toast";
 
 /**
@@ -70,6 +71,7 @@ export default function ReviewScreen() {
   const { courseId } = useLocalSearchParams<{ courseId: string }>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
+  const { promptAfterFirstSession } = useNotifications();
 
   const [session, setSession] = useState<DueCardsResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -98,6 +100,17 @@ export default function ReviewScreen() {
   const cards = session?.cards ?? [];
   const card: CardDue | undefined = cards[index];
   const finished = session !== null && index >= cards.length;
+
+  /*
+   * Ask for notifications here and nowhere else. The user has just finished a session, so
+   * "remind you tomorrow" is an obvious yes; asking on launch, before the app has shown any
+   * value, is how opt-in rates get halved. The provider makes sure it only ever fires once.
+   */
+  useEffect(() => {
+    if (finished && reviewed > 0) {
+      promptAfterFirstSession();
+    }
+  }, [finished, reviewed, promptAfterFirstSession]);
 
   const close = useCallback(() => router.back(), []);
 
