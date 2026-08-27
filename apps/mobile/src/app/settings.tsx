@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, ScrollView, Text, View } from "react-native";
@@ -19,7 +20,7 @@ const MANAGE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
 const LEGAL_BASE_URL = "https://ittekimasu.app";
 
 export default function SettingsScreen() {
-  const { signOut } = useAuth();
+  const { signOut, forgetOnboarded } = useAuth();
   const { restore } = usePurchases();
   const [busy, setBusy] = useState(false);
 
@@ -47,19 +48,29 @@ export default function SettingsScreen() {
       "This permanently removes your checklist, review history, and account. It cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Delete", style: "destructive", onPress: deleteAccount },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: () => deleteAccount.mutate(),
+        },
       ],
     );
   }
 
-  async function deleteAccount() {
-    try {
-      await api.deleteMe();
+  const deleteAccount = useMutation({
+    mutationFn: () => api.deleteMe(),
+
+    onSuccess: async () => {
+      // Before the sign-out: the cached "already onboarded" answer is keyed by the Firebase
+      // uid, which outlives the server row. Signing back in with the same Apple ID would
+      // otherwise route straight into the tabs of an account that no longer exists.
+      await forgetOnboarded();
+      // Sign-out clears the query cache, so nothing of the deleted account survives it.
       await signOut();
-    } catch (error) {
-      toast.fromError(error, "Could not reach the server. Try again.");
-    }
-  }
+    },
+
+    meta: { errorMessage: "Could not reach the server. Try again." },
+  });
 
   return (
     <>

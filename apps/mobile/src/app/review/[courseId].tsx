@@ -1,6 +1,7 @@
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -21,18 +22,19 @@ import {
   type ReviewRating,
 } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications";
+import { dueQuery } from "@/lib/queries";
+import { REVIEW_MUTATION_KEY } from "@/lib/query-client";
 import {
   applyAudioMode,
   dismissAudioHint,
   getSelectedVoice,
   isSoundEnabled,
-  readingOf,
   setSoundEnabled,
   shouldShowAudioHint,
   speakReading,
+  spokenTextOf,
   stopSpeaking,
 } from "@/lib/speech";
-import { toast } from "@/lib/toast";
 
 /**
  * The four ratings, in the order the buttons appear.
@@ -85,10 +87,8 @@ export default function ReviewScreen() {
   const { promptAfterFirstSession } = useNotifications();
 
   const [session, setSession] = useState<DueCardsResponse | null>(null);
-  const [failed, setFailed] = useState(false);
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [streak, setStreak] = useState(0);
   // Today's total across every deck, not just this sitting. Reopening a session restarts
@@ -115,22 +115,38 @@ export default function ReviewScreen() {
   // Leaving mid-word would otherwise keep talking over whatever screen comes next.
   useEffect(() => stopSpeaking, []);
 
-  const load = useCallback(async () => {
-    setFailed(false);
-    try {
-      const next = await api.getDueCards(courseId);
-      setSession(next);
-      setStreak(next.studyStreakDays);
-      setReviewedToday(next.reviewedToday);
-    } catch (error) {
-      setFailed(true);
-      toast.fromError(error, "Couldn't load your review session.");
-    }
-  }, [courseId]);
+  /*
+   * A session is a snapshot, so it is fetched through the cache but then held locally.
+   *
+   * The learn tab reads this very same cache entry and refetches it whenever it regains
+   * focus or the app returns to the foreground. Rendering straight from `data` would let
+   * one of those refetches reorder or replace the deck under a learner who is halfway
+   * through it; adopting it once is what keeps "Card 4 of 12" meaning what it says.
+   */
+  const {
+    data: due,
+    isError: failed,
+    isPending,
+    fetchStatus,
+    refetch,
+  } = useQuery({
+    ...dueQuery(courseId),
+    staleTime: Number.POSITIVE_INFINITY,
+    refetchOnMount: "always",
+  });
+
+  /** Offline with nothing cached for this deck: not loading, and never will be. */
+  const waitingOffline = isPending && fetchStatus === "paused";
+
+  const adopted = useRef(false);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (adopted.current || !due) return;
+    adopted.current = true;
+    setSession(due);
+    setStreak(due.studyStreakDays);
+    setReviewedToday(due.reviewedToday);
+  }, [due]);
 
   const cards = session?.cards ?? [];
   const card: CardDue | undefined = cards[index];
@@ -149,32 +165,62 @@ export default function ReviewScreen() {
 
   const close = useCallback(() => router.back(), []);
 
-  const rate = useCallback(
-    async (rating: ReviewRating) => {
-      if (!card || submitting) return;
-      setSubmitting(true);
+  const submit = useMutation({
+    // The key carries the offline defaults from lib/query-client: networkMode
+    // "offlineFirst", so a rating with no connection is queued rather than lost, and a
+    // mutationFn that can replay it after the app has been killed and relaunched.
+    mutationKey: REVIEW_MUTATION_KEY,
+    mutationFn: ({
+      cardId,
+      rating,
+    }: {
+      cardId: string;
+      rating: ReviewRating;
+    }) => api.submitReview(cardId, rating),
 
-      try {
-        const result = await api.submitReview(card.id, rating);
-        setStreak(result.studyStreakDays);
-        setReviewedToday(result.reviewedToday);
-        setReviewed((count) => count + 1);
-        setRevealed(false);
-        setIndex((current) => current + 1);
-      } catch (error) {
-        if (error instanceof ApiError && error.requiresPremium) {
-          // End the session before opening the paywall: leaving the card on screen would
-          // invite a tap that can only fail again.
-          setIndex(cards.length);
-          router.push("/paywall");
-          return;
-        }
-        toast.fromError(error, "Couldn't save that answer.");
-      } finally {
-        setSubmitting(false);
-      }
+    /*
+     * Move to the next card here rather than in onSuccess.
+     *
+     * Offline the request is paused, so onSuccess may not run for hours — waiting for it
+     * would freeze the session on one card, which is exactly the plane case this exists
+     * for. The counters below are the optimistic version; onSuccess replaces them with
+     * whatever the server actually recorded.
+     */
+    onMutate: () => {
+      setReviewed((count) => count + 1);
+      setReviewedToday((count) => count + 1);
+      setRevealed(false);
+      setIndex((current) => current + 1);
     },
-    [card, cards.length, submitting],
+
+    onSuccess: (result) => {
+      setStreak(result.studyStreakDays);
+      setReviewedToday(result.reviewedToday);
+    },
+
+    onError: (error) => {
+      if (error instanceof ApiError && error.requiresPremium) {
+        // End the session before opening the paywall: leaving cards on screen would invite
+        // taps that can only fail again.
+        setIndex(cards.length);
+        router.push("/paywall");
+      }
+      // Any other failure keeps the session moving. The server never recorded the answer,
+      // so the card is still scheduled and comes back in the next session — rewinding the
+      // deck under someone who has already read the next card is worse than repeating it.
+    },
+
+    meta: { errorMessage: "Couldn't save that answer." },
+  });
+
+  const rate = useCallback(
+    (rating: ReviewRating) => {
+      // Deliberately not gated on isPending: offline every rating stays pending until there
+      // is a connection, and gating would let one card lock the whole session.
+      if (!card) return;
+      submit.mutate({ cardId: card.id, rating });
+    },
+    [card, submit],
   );
 
   const header = (
@@ -231,14 +277,32 @@ export default function ReviewScreen() {
     return (
       <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
         {header}
-        {failed ? (
+        {waitingOffline ? (
+          // A paused query never resolves, so the spinner below would run until the
+          // connection came back. This deck has simply never been opened online.
+          <View className="gap-3 px-4 pt-8">
+            <Card tone="sunken">
+              <Text className="text-body text-ink">
+                This deck isn&apos;t saved on your device yet.
+              </Text>
+              <CardCaption>
+                Open it once with a connection and the cards will be here next
+                time, plane or no plane.
+              </CardCaption>
+            </Card>
+          </View>
+        ) : failed ? (
           <View className="gap-3 px-4 pt-8">
             <Card tone="sunken">
               <Text className="text-body text-ink">
                 Couldn&apos;t reach the server.
               </Text>
               <View className="pt-3">
-                <Button onPress={load} title="Try again" variant="secondary" />
+                <Button
+                  onPress={() => refetch()}
+                  title="Try again"
+                  variant="secondary"
+                />
               </View>
             </Card>
           </View>
@@ -311,7 +375,11 @@ export default function ReviewScreen() {
           disabled={revealed}
           onPress={() => {
             setRevealed(true);
-            if (sound) speakReading(readingOf(card?.backText ?? ""), voice);
+            if (sound)
+              speakReading(
+                spokenTextOf(card?.frontText, card?.backText),
+                voice,
+              );
           }}
           style={{ borderCurve: "continuous" }}
         >
@@ -337,13 +405,16 @@ export default function ReviewScreen() {
                 <Text className="text-center text-heading text-ink">
                   {card?.backText}
                 </Text>
-                {readingOf(card?.backText ?? "") ? (
+                {spokenTextOf(card?.frontText, card?.backText) ? (
                   <Pressable
                     accessibilityLabel="Play pronunciation"
                     accessibilityRole="button"
                     className="h-9 w-9 items-center justify-center rounded-pill active:bg-surface-sunken"
                     onPress={() =>
-                      speakReading(readingOf(card?.backText ?? ""))
+                      speakReading(
+                        spokenTextOf(card?.frontText, card?.backText),
+                        voice,
+                      )
                     }
                   >
                     <Image
@@ -382,7 +453,9 @@ export default function ReviewScreen() {
               {RATINGS.map(({ rating, label, border, text }) => (
                 <RatingButton
                   border={border}
-                  disabled={submitting}
+                  // Not gated on the request: offline it never settles, and a locked row of
+                  // buttons is exactly the session-freeze this feature exists to avoid.
+                  disabled={!card}
                   interval={
                     card?.intervals[
                       rating.toLowerCase() as Lowercase<ReviewRating>

@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -13,9 +14,9 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api } from "@/lib/api";
 import { auth } from "@/lib/firebase";
-import { toast } from "@/lib/toast";
+import { meQuery } from "@/lib/queries";
+import { clearPersistedCache } from "@/lib/query-client";
 
 /**
  * Per-uid so signing in as someone else on the same device never inherits their state.
@@ -30,9 +31,11 @@ type AuthState = {
   initializing: boolean;
   /** True while the correct route for a signed-in user is still unknown. */
   resolvingRoute: boolean;
-  /** Whether the user already has a checklist on the server. */
+  /** Whether the server says onboarding is finished — with or without a checklist. */
   hasOnboarded: boolean;
   markOnboarded: () => Promise<void>;
+  /** Drops the cached answer for the current uid. Account deletion, not sign-out. */
+  forgetOnboarded: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -48,6 +51,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
    * for a second before jumping to the tabs.
    */
   const [resolvingRoute, setResolvingRoute] = useState(false);
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     return onAuthStateChanged(auth, async (nextUser) => {
@@ -57,6 +61,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setHasOnboarded(false);
         setResolvingRoute(false);
         setInitializing(false);
+        // Nothing cached survives a sign-out. On a shared phone the next account would
+        // otherwise render the previous one's checklist and streak for a frame — and the
+        // persisted copy would survive a relaunch, which is worse.
+        queryClient.clear();
+        clearPersistedCache();
         return;
       }
 
@@ -72,29 +81,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
         // Doubles as account creation: the backend creates the user row on the first
-        // authenticated request, so no separate call to /users/me is needed.
-        const checklist = await api.getChecklist();
-        const onboarded = checklist.totalCount > 0;
+        // authenticated request, so this is the only call needed here.
+        //
+        // fetchQuery, not api.getMe: the answer lands in the same cache entry the learn
+        // tab, the profile and the notifications provider all read.
+        //
+        // `onboarded` is a field on the user now, not a count of checklist tasks — someone
+        // who only wants the language decks has none and is still finished.
+        const me = await queryClient.fetchQuery(meQuery());
 
-        setHasOnboarded(onboarded);
+        setHasOnboarded(me.onboarded);
         await AsyncStorage.setItem(
           onboardedKey(nextUser.uid),
-          String(onboarded),
+          String(me.onboarded),
         );
-      } catch (error) {
-        // Offline or server down. With a cached answer we keep it; without one the only
-        // safe default is onboarding, which is recoverable — the server rejects a second
-        // checklist anyway by replacing it.
+      } catch {
+        // Offline or server down — the query cache has already toasted. With a cached
+        // answer we keep it; without one the only safe default is onboarding, which is
+        // recoverable: finishing it again just re-stamps a value the server already has.
         if (!hasCachedAnswer) {
           setHasOnboarded(false);
         }
-        toast.fromError(error, "Signed in, but the server didn't respond.");
       } finally {
         setResolvingRoute(false);
         setInitializing(false);
       }
     });
-  }, []);
+  }, [queryClient]);
 
   const markOnboarded = useCallback(async () => {
     const uid = auth.currentUser?.uid;
@@ -102,6 +115,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(onboardedKey(uid), "true");
     }
     setHasOnboarded(true);
+  }, []);
+
+  /**
+   * DELETE /users/me removes the server row but not the Firebase user, so signing back in
+   * returns the SAME uid — and with it a cached "onboarded" answer for an account that no
+   * longer exists. That is what made the tabs paint for a moment before bouncing to
+   * onboarding. Sign-out deliberately keeps the cache; deletion must clear it.
+   *
+   * Only the cache — deliberately NOT setHasOnboarded(false). The user is still signed in
+   * for the moment it takes to sign out, and flipping the flag here routed them into
+   * onboarding for that moment, which both flashed and kicked off a templates fetch that
+   * landed after the token was gone.
+   */
+  const forgetOnboarded = useCallback(async () => {
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      await AsyncStorage.removeItem(onboardedKey(uid));
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -117,9 +148,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resolvingRoute,
       hasOnboarded,
       markOnboarded,
+      forgetOnboarded,
       signOut,
     }),
-    [user, initializing, resolvingRoute, hasOnboarded, markOnboarded, signOut],
+    [
+      user,
+      initializing,
+      resolvingRoute,
+      hasOnboarded,
+      markOnboarded,
+      forgetOnboarded,
+      signOut,
+    ],
   );
 
   return <AuthContext value={value}>{children}</AuthContext>;

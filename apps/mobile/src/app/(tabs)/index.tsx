@@ -126,6 +126,28 @@ export default function DashboardScreen() {
           </>
         ) : null}
 
+        {/*
+          The study-only path lands here with no checklist at all. Offering it plainly beats
+          an empty progress ring — and this is the only route back to the wizard, so someone
+          who skipped it and then got a job offer is not stuck.
+        */}
+        {checklist && total === 0 && !loading ? (
+          <Card>
+            <CardTitle>No checklist yet</CardTitle>
+            <CardCaption>
+              Moving to Japan? Answer three questions and every deadline — COE,
+              ward office, residence card — gets dated from your move.
+            </CardCaption>
+            <View className="pt-3">
+              <Button
+                onPress={() => router.push("/checklist-setup")}
+                title="Build my checklist"
+                variant="secondary"
+              />
+            </View>
+          </Card>
+        ) : null}
+
         <Card tone="accent">
           <CardTitle>Daily practice</CardTitle>
           <CardCaption>

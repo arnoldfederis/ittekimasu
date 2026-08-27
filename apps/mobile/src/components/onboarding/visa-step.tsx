@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
-import { api, type ChecklistTemplateSummary } from "@/lib/api";
 import { useOnboarding } from "@/lib/onboarding";
-import { toast } from "@/lib/toast";
+import { templatesQuery } from "@/lib/queries";
 
 /** Badged as the common case so a first-time user has an obvious default. */
 const MOST_COMMON_VISA_TYPE = "ENGINEER_SPECIALIST";
@@ -12,26 +11,18 @@ const MOST_COMMON_VISA_TYPE = "ENGINEER_SPECIALIST";
 /** Step 2. A pane inside the onboarding pager — the footer buttons live on the pager. */
 export function VisaStep() {
   const { purpose, template, setTemplate } = useOnboarding();
-  const [templates, setTemplates] = useState<ChecklistTemplateSummary[] | null>(
-    null,
-  );
-  const [failed, setFailed] = useState(false);
 
-  const load = useCallback(async () => {
-    setFailed(false);
-    try {
-      setTemplates(await api.getTemplates(purpose ?? undefined));
-    } catch (error) {
-      setFailed(true);
-      toast.fromError(error, "Couldn't load visa routes.");
-    }
-  }, [purpose]);
+  // Keyed by purpose, so going back and editing that answer swaps the list — and coming
+  // forward again reads the earlier answer straight from the cache.
+  const {
+    data: templates = null,
+    isError: failed,
+    refetch,
+  } = useQuery(templatesQuery(purpose ?? undefined));
 
-  // Re-runs when the purpose changes, which is what keeps the list in step with a choice
-  // the user went back and edited.
-  useEffect(() => {
-    load();
-  }, [load]);
+  const load = () => {
+    refetch();
+  };
 
   return (
     <ScrollView

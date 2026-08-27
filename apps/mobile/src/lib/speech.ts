@@ -43,6 +43,24 @@ export function readingOf(backText: string): string | null {
 }
 
 /**
+ * What to say out loud for a card.
+ *
+ * A vocabulary card carries its reading on the back. A kana card has no separate reading —
+ * the character on the FRONT is the sound — so its back is romaji, which must never be read
+ * aloud by a Japanese voice ("shi" spoken as English is not the point of the exercise).
+ */
+export function spokenTextOf(
+  frontText: string | undefined,
+  backText: string | undefined,
+): string | null {
+  const reading = readingOf(backText ?? "");
+  if (reading) return reading;
+
+  const front = frontText?.trim();
+  return front ? front : null;
+}
+
+/**
  * Japanese voices installed on THIS device.
  *
  * Apps cannot bundle or download system voices — iOS ships Kyoko and the user adds others

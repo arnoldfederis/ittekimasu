@@ -1,7 +1,16 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
+import { Button } from "@/components/button";
+import { Card } from "@/components/card";
 import { useThemeColors } from "@/constants/theme";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
 
@@ -28,7 +37,7 @@ function shortHour(hour: number): string {
 
 export default function ReminderTimeScreen() {
   const colors = useThemeColors();
-  const { reminderHour, setReminderHour } = useNotifications();
+  const { reminderHour, setReminderHour, hasPermission } = useNotifications();
 
   // Remembered so toggling off and back on returns to the hour they picked, rather than
   // silently resetting to the default.
@@ -76,6 +85,30 @@ export default function ReminderTimeScreen() {
             />
           </View>
         </View>
+
+        {/*
+          The failure this prevents: OneSignal answers "all included players are not
+          subscribed", the reminder silently never arrives, and nothing in the app explains
+          why. iOS only grants permission once, so the only route back is Settings.
+        */}
+        {enabled && hasPermission === false ? (
+          <Card tone="sunken">
+            <Text className="text-body text-ink">
+              Notifications are blocked
+            </Text>
+            <Text className="pt-1 text-caption text-ink-muted">
+              Your reminder is set, but iOS won&apos;t deliver it until you
+              allow notifications for Ittekimasu.
+            </Text>
+            <View className="pt-3">
+              <Button
+                onPress={() => Linking.openSettings()}
+                title="Open Settings"
+                variant="secondary"
+              />
+            </View>
+          </Card>
+        ) : null}
 
         {enabled ? (
           <Animated.View entering={FadeIn.duration(160)}>

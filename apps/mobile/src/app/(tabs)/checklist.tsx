@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Image } from "expo-image";
+import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -105,12 +106,25 @@ export default function ChecklistScreen() {
           </Card>
         ) : null}
 
+        {/*
+          "Finish onboarding" was the old copy, and it is now advice nobody can act on: a
+          study-only user has finished onboarding and still has no tasks. The wizard itself
+          is the answer.
+        */}
         {checklist && total === 0 && !loading ? (
           <Card>
             <CardTitle>No checklist yet</CardTitle>
             <CardCaption>
-              Finish onboarding to generate your tasks from your move date.
+              Three questions — where you are moving from, which visa, and when
+              — and every deadline gets dated from your move.
             </CardCaption>
+            <View className="pt-3">
+              <Button
+                onPress={() => router.push("/checklist-setup")}
+                title="Build my checklist"
+                variant="secondary"
+              />
+            </View>
           </Card>
         ) : null}
 

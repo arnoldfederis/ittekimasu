@@ -40,6 +40,15 @@ public class User {
 	private ChecklistTemplate checklistTemplate;
 
 	/**
+	 * When onboarding was completed, or null if it has not been. Deliberately separate from
+	 * {@link #checklistTemplate}: a user who only wants the language decks finishes onboarding
+	 * without ever adopting a template, and counting checklist tasks would send them round the
+	 * visa picker again on every launch.
+	 */
+	@Column(name = "onboarded_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+	private Instant onboardedAt;
+
+	/**
 	 * Consecutive days with at least one review. Kept here rather than derived from
 	 * user_card_progress, which only remembers the latest review per card.
 	 */

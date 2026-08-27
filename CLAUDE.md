@@ -56,6 +56,22 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 - Validation errors render **amber, never red** — same positive-reinforcement rule as the rest of the app.
 - Reference for toast/animation patterns: https://github.com/emilkowalski/skills (Emil Kowalski, author of Sonner). Install as agent skills with `npx skills@latest add emilkowalski/skills`.
 
+### Data layer — TanStack Query (apps/mobile/src/lib/queries.ts, query-client.ts)
+- **Every read goes through React Query.** No screen calls `api.*` directly for a fetch. Keys and `queryOptions` factories live in `lib/queries.ts`, so the learn tab, the profile tab and the notifications provider share ONE `GET /users/me` instead of three.
+- `lib/api/` is split into `client.ts` (transport, `ApiError`, `NotSignedInError`), `endpoints.ts`, `types.ts`, with an `index.ts` barrel — `@/lib/api` still resolves everywhere.
+- Failures toast in exactly one place (`QueryCache`/`MutationCache` `onError`), with per-query copy via `meta.errorMessage` and `meta.silent`. **402 and `NotSignedInError` never toast**: the first means "open the paywall", the second means the session just ended on purpose.
+- Retry skips every 4xx. Retrying a 402 would delay the paywall for nothing.
+- `queryClient.clear()` + `clearPersistedCache()` on sign-out. On a shared phone the next account would otherwise see the previous one's checklist — and the on-disk copy would survive a relaunch.
+- Providers (`useChecklist`, `usePurchases`, `useNotifications`) kept their public APIs; the query lives inside them, so screens did not churn.
+
+### Offline (apps/mobile/src/lib/network.ts)
+- **`expo-network` drives `onlineManager`.** Without it React Query assumes always-online, fires into a dead socket, and the raw "The internet connection appears to be offline" reaches the user as a toast. Uses `isInternetReachable`, not `isConnected` — plane wifi and captive portals report connected while nothing gets through.
+- The cache is **persisted to AsyncStorage** (7 days, `gcTime` matched to it, `buster` to throw it away after a response-shape change). Entitlement is excluded: premium is re-read from the server every launch and gates nothing on its own.
+- **Ratings given offline are queued, not lost**: `networkMode: "offlineFirst"` plus a mutationFn registered through `setMutationDefaults(REVIEW_MUTATION_KEY)`, which is what lets a rating replay after the app has been killed and relaunched. The review screen advances the card in `onMutate`, never `onSuccess` — offline that never fires and the session would freeze on card one.
+- **The server timestamps a review when it SYNCS, not when it was answered.** A plane session that uploads next morning counts toward that day's cap and streak (`ReviewService.APP_ZONE` is Asia/Tokyo). Fixing it properly means accepting a client `reviewedAt`.
+- Over-answering offline on the free plan gets 402s on replay. Those are silent everywhere else, so replayed rejections raise one throttled notice — otherwise the work vanishes without a word.
+- A paused query is NOT loading: it never resolves offline, so screens check `fetchStatus === "paused"` and show "not saved on this device yet" instead of a spinner that runs forever.
+
 ### OneSignal (apps/mobile/src/lib/notifications.tsx)
 - **The permission prompt fires after the first completed review session, never on launch.** Asking before the app has shown any value roughly halves opt-in. An AsyncStorage flag (`notifications.prompted`) makes it once-only — iOS gives you exactly one chance at the system dialog.
 - `OneSignal.login(firebaseUid)` — the **same external id as RevenueCat**, so a push campaign and a subscription event describe the same person with no lookup table between them.
@@ -112,10 +128,13 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - Card shape: front is the word as written, back is `reading · meaning` so the learner recalls the reading, not just the gloss.
   - `GET /courses` returns premium decks too, with `cardCount`. The learn tab dims them rather than hiding them — seeing what exists is what makes the paywall read as an unlock.
   - **N5 vocabulary has not been checked against an official JLPT list.** Worth a proofread before launch; spaced repetition makes a wrong reading stick.
+  - **Hiragana and Katakana (104 cards each) are free and sort first.** The N5 deck writes its readings in hiragana, so it silently assumed the learner could already read kana — that was the app's real starting wall. 46 gojūon + 25 dakuten/handakuten + 33 yōon per script. Excluded on purpose: the katakana long-vowel mark ー and extended foreign-sound combos (ファ, ティ), neither of which works as a standalone card with a spoken answer.
+  - Kana cards break the `reading · meaning` shape: front is the character, back is romaji, `card_type = 'KANA'`. A kana IS its reading. `speech.ts` therefore speaks the **front** when the back has no `·` (`spokenTextOf`), or a Japanese voice would read "shi" as English.
 - `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count, last_reviewed_at) — unique on (user_id, card_id)
   - A row exists only once the card has been reviewed. An unseen card is the **absence** of a row, which is why the due query is a LEFT JOIN and not a bulk insert when a deck is unlocked.
   - `streak_count` is per-card (consecutive non-AGAIN answers). The **day** streak lives on `users` — see below.
   - `last_reviewed_at` drives the free daily cap. Only the latest review per card survives, so the cap counts **distinct cards touched today**: re-rating a card you already answered today is free.
+- `users.onboarded_at` — when onboarding finished, null until it has. **NOT** the same as having a checklist: someone on the study-only path is onboarded with zero tasks. `UserResponse.onboarded` is what the client routes on; counting checklist tasks (the old rule) made a checklist compulsory and trapped language-only users in the visa picker forever. Set by adopting a template AND by `POST /users/me/onboarding`, never overwritten once set.
 - `users.reminder_hour` (0-23, null = off) / `reminder_timezone` — the daily push reminder. See the OneSignal section for why this lives in the database rather than only as a tag.
 - `users.current_streak_days` / `longest_streak_days` / `last_studied_on` — the study-day streak.
   - Not derivable from `user_card_progress` (only the latest review per card is kept, so drilling the same 20 cards daily would look like one study day). Cheaper than a review-history table.
@@ -134,6 +153,7 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | UserController | DELETE | `/users/me` | — | 204 |
 | UserController | GET | `/users/me/entitlement` | — | `EntitlementResponse` |
 | UserController | PATCH | `/users/me/reminders` | `UpdateRemindersRequest` | `UserResponse` |
+| UserController | POST | `/users/me/onboarding` | — | `UserResponse` |
 | ChecklistController | GET | `/templates` | query `purpose?` | `List<ChecklistTemplateSummaryResponse>` |
 | ChecklistController | GET | `/templates/{visaType}` | — | `ChecklistTemplateDetailResponse` |
 | ChecklistController | POST | `/users/me/checklist` | `CreateChecklistRequest` | `UserChecklistResponse` |
@@ -190,15 +210,14 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 
 ## Screens (apps/mobile/src/app/)
 - `(auth)/sign-in.tsx` — Apple first and most prominent, then Google. No email/password.
-- `onboarding/` — `index.tsx` redirects to `purpose.tsx` → `visa.tsx` → `move-date.tsx`. The three answers live in `lib/onboarding.tsx` (provider mounted on the onboarding layout) and are submitted **once**, on the last screen — a half-written checklist on the server is worse than none.
-
-- `onboarding/` — purpose picker → visa status picker → target move date
+- `onboarding/` — step 1 offers **"Just here for the language"**, which calls `POST /users/me/onboarding` and lands on the decks with no checklist. An explicit answer rather than a skip link: not everyone who installs this is moving, and making them invent a visa route to reach the decks loses them on the first screen. One screen, three horizontal panes (`components/onboarding/checklist-wizard.tsx`): purpose → visa route → move date. The answers live in `lib/onboarding.tsx` (provider on the onboarding layout) and are submitted **once**, on the last pane — a half-written checklist on the server is worse than none.
 - `(tabs)/index.tsx` — dashboard: progress ring, up to 3 tasks due within 7 days (overdue included), streak card. Shares `lib/checklist.tsx` state with the checklist tab so an optimistic toggle updates both.
 - `(tabs)/checklist.tsx` — full checklist grouped by category
-- `(tabs)/learn.tsx` — streak card, active deck with progress and due count, dimmed premium decks. Refetches on focus (`useFocusEffect`), or finishing a session leaves a stale "Review 12 cards" button behind.
+- `(tabs)/learn.tsx` — streak card, active deck with progress and due count, dimmed premium decks. Invalidates on focus (`useInvalidateOnFocus`), or finishing a session leaves a stale "Review 12 cards" button behind.
 - `review/[courseId].tsx` — the flashcard session. A **modal, not a tab**: one task the learner starts and finishes, and the tab bar would invite them to wander out half-done.
 - `(tabs)/profile.tsx` — avatar initial, plan card (free shows the cap + Upgrade, premium shows the renewal date), three stat tiles, account rows
 - `paywall.tsx` — modal. Prices come from `product.priceString`, never hardcoded: already localised, and already right when App Store Connect pricing changes. Annual preselected.
+- `checklist-setup.tsx` — the checklist wizard again, as a modal, for someone who chose the study-only path and later needs the checklist. Shares `components/onboarding/checklist-wizard.tsx` with onboarding; a second copy of that flow would drift. Its own `OnboardingProvider`, so backing out halfway leaves no draft behind.
 - `reminder-time.tsx` — the daily reminder picker. Waking hours only (7–22), plus Off. A full 24-hour list buries the sensible choices, and nobody wants a 3am nudge.
 - `settings.tsx` — manage subscription (deep-links to Apple's own screen; there is no in-app cancel), restore purchases, legal links, sign out, delete account.
   - Privacy and terms are **hosted pages**, not in-app screens — App Store Connect needs a public privacy URL to submit at all. `LEGAL_BASE_URL` must be live before submission or the links 404 into a rejection.

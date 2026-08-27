@@ -42,6 +42,19 @@ public class UserController {
   }
 
   /**
+   * Finishes onboarding for someone who does not want a checklist.
+   *
+   * <p>Adopting a template does this too (see ChecklistService), so this endpoint exists only
+   * for the study-only path. Without it that user has nothing on the server saying they are
+   * done, and the app has no choice but to show them onboarding again on every launch.
+   */
+  @PostMapping("/me/onboarding")
+  public UserResponse completeOnboarding(@AuthenticationPrincipal FirebasePrincipal principal) {
+    return UserResponse.from(
+        userService.completeOnboarding(userService.findOrCreate(principal).getId()));
+  }
+
+  /**
    * The authoritative answer to "am I premium". The RevenueCat SDK gives the app the same
    * answer locally, but only this one gates anything.
    */

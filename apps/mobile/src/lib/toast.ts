@@ -1,5 +1,5 @@
 import { toast as sonner } from "sonner-native";
-import { ApiError } from "@/lib/api";
+import { ApiError, NotSignedInError } from "@/lib/api";
 
 /**
  * Toasts are the default for feedback that does not need a decision: failed requests,
@@ -21,6 +21,11 @@ export const toast = {
     error: unknown,
     fallback = "Something went wrong. Try again.",
   ) => {
+    // The session ended mid-request. The router has already moved the user to sign-in;
+    // a toast about it would only be noise.
+    if (error instanceof NotSignedInError) {
+      return;
+    }
     if (error instanceof ApiError) {
       sonner.error("Couldn't reach the server", { description: error.message });
       return;
