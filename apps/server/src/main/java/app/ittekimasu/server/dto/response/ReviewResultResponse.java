@@ -18,5 +18,7 @@ public record ReviewResultResponse(
     /** Consecutive days the learner has reviewed something — the flame. */
     int studyStreakDays,
     int longestStreakDays,
+    /** Cards reviewed today across every deck, including the one just answered. */
+    int reviewedToday,
     /** Null for premium: unlimited. */
     Integer reviewsRemainingToday) {}

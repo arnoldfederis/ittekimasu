@@ -48,6 +48,15 @@ function readPremium(info: CustomerInfo): boolean {
   return info.entitlements.active[PREMIUM_ENTITLEMENT_ID] !== undefined;
 }
 
+/**
+ * RevenueCat log lines the app already handles and reports to the user itself. Keeping them
+ * out of LogBox stops a normal "user tapped Cancel" from looking like a crash in dev.
+ */
+const HANDLED_LOG_PATTERNS = [
+  /purchase was cancelled/i,
+  /error when syncing subscriber attributes/i,
+];
+
 /** Cancelling a purchase sheet is not an error worth surfacing. */
 export function isPurchaseCancelled(error: unknown): boolean {
   return (error as { userCancelled?: boolean })?.userCancelled === true;
@@ -72,6 +81,15 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
 
     if (__DEV__) {
       Purchases.setLogLevel(LOG_LEVEL.WARN);
+      // The SDK routes its own messages through console.error, so a user tapping Cancel
+      // raises a LogBox error over the app. These are handled outcomes, not bugs — swallow
+      // the ones we already surface to the user, keep the rest visible.
+      Purchases.setLogHandler((level, message) => {
+        if (HANDLED_LOG_PATTERNS.some((pattern) => pattern.test(message))) {
+          return;
+        }
+        console.log(`[RevenueCat] ${level}: ${message}`);
+      });
     }
     Purchases.configure({ apiKey: API_KEY });
 

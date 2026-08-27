@@ -1,10 +1,16 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import { Image } from "expo-image";
 import { useEffect, useState } from "react";
-import { Platform, ScrollView, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  ScrollView,
+  Text,
+  View,
+} from "react-native";
 import { Button } from "@/components/button";
 import { GoogleLogo } from "@/components/google-logo";
-import { useIsDark } from "@/constants/theme";
+import { useIsDark, useThemeColors } from "@/constants/theme";
 import {
   SignInCancelledError,
   signInWithApple,
@@ -17,6 +23,7 @@ const AUTH_BUTTON_HEIGHT = 56;
 
 export default function SignInScreen() {
   const isDark = useIsDark();
+  const colors = useThemeColors();
   const [appleAvailable, setAppleAvailable] = useState(false);
   const [busy, setBusy] = useState<"apple" | "google" | null>(null);
 
@@ -70,20 +77,38 @@ export default function SignInScreen() {
           (App Store review guideline 4.8). Do not reorder these.
         */}
         {appleAvailable && Platform.OS === "ios" ? (
-          <AppleAuthentication.AppleAuthenticationButton
-            // Apple's HIG requires the white variant on dark backgrounds.
-            buttonStyle={
-              isDark
-                ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-            }
-            buttonType={
-              AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
-            }
-            cornerRadius={14}
-            onPress={() => run("apple", signInWithApple)}
-            style={{ height: AUTH_BUTTON_HEIGHT }}
-          />
+          // Apple's button is a native view: it cannot render a spinner, and restyling it
+          // is against the HIG. Overlaying one keeps Apple's button untouched while still
+          // showing that something is happening.
+          <View>
+            <AppleAuthentication.AppleAuthenticationButton
+              // Apple's HIG requires the white variant on dark backgrounds.
+              buttonStyle={
+                isDark
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
+              }
+              buttonType={
+                AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN
+              }
+              cornerRadius={14}
+              onPress={() => run("apple", signInWithApple)}
+              style={{
+                height: AUTH_BUTTON_HEIGHT,
+                opacity: busy === null ? 1 : 0.5,
+              }}
+            />
+            {busy === "apple" ? (
+              <View
+                className="absolute inset-0 items-center justify-center"
+                pointerEvents="none"
+              >
+                <ActivityIndicator
+                  color={isDark ? colors.ink : colors.inkInverse}
+                />
+              </View>
+            ) : null}
+          </View>
         ) : null}
 
         <Button

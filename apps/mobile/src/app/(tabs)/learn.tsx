@@ -5,7 +5,7 @@ import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ScreenHeader } from "@/components/screen-header";
-import { useThemeColors } from "@/constants/theme";
+import { TAB_BAR_CLEARANCE, useThemeColors } from "@/constants/theme";
 import { api, type CourseSummary, type DueCardsResponse } from "@/lib/api";
 import { usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
@@ -74,7 +74,7 @@ export default function LearnScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE, gap: 16 }}
       contentInsetAdjustmentBehavior="automatic"
     >
       <ScreenHeader

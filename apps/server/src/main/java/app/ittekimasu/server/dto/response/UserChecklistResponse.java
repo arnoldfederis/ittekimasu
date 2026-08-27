@@ -3,6 +3,7 @@ package app.ittekimasu.server.dto.response;
 import app.ittekimasu.server.entity.ChecklistCategory;
 import app.ittekimasu.server.entity.UserChecklistTask;
 import java.time.LocalDate;
+import java.util.UUID;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,12 +17,15 @@ public record UserChecklistResponse(
     Map<String, List<UserChecklistTaskResponse>> tasksByCategory,
     int completedCount,
     int totalCount,
+    /** The template this was generated from, so the app can regenerate against a new date. */
+    UUID templateId,
     String visaType,
     String templateDisplayName,
     LocalDate targetMoveDate) {
 
   public static UserChecklistResponse of(
       List<UserChecklistTask> userTasks,
+      UUID templateId,
       String visaType,
       String templateDisplayName,
       LocalDate targetMoveDate) {
@@ -45,6 +49,12 @@ public record UserChecklistResponse(
     int completed = (int) userTasks.stream().filter(UserChecklistTask::isCompleted).count();
 
     return new UserChecklistResponse(
-        grouped, completed, userTasks.size(), visaType, templateDisplayName, targetMoveDate);
+        grouped,
+        completed,
+        userTasks.size(),
+        templateId,
+        visaType,
+        templateDisplayName,
+        targetMoveDate);
   }
 }

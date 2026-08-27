@@ -109,6 +109,7 @@ class CourseControllerTest {
                         new IntervalPreviewResponse(1, 6, 6, 6))),
                 12,
                 100,
+                1,
                 20,
                 19,
                 3));

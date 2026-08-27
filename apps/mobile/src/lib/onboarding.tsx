@@ -17,7 +17,8 @@ type OnboardingDraft = {
 type OnboardingState = OnboardingDraft & {
   setPurpose: (purpose: VisaPurpose) => void;
   setTemplate: (template: ChecklistTemplateSummary) => void;
-  setTargetMoveDate: (date: Date) => void;
+  /** Null clears it — the month picker uses that when a year change invalidates the pick. */
+  setTargetMoveDate: (date: Date | null) => void;
 };
 
 const OnboardingContext = createContext<OnboardingState | null>(null);
@@ -49,7 +50,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     setDraft((current) => ({ ...current, template }));
   }, []);
 
-  const setTargetMoveDate = useCallback((targetMoveDate: Date) => {
+  const setTargetMoveDate = useCallback((targetMoveDate: Date | null) => {
     setDraft((current) => ({ ...current, targetMoveDate }));
   }, []);
 

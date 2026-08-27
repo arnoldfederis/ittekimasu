@@ -100,8 +100,10 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     const alreadyPrompted = await AsyncStorage.getItem(PROMPTED_KEY);
     if (alreadyPrompted === "true") return;
 
-    await AsyncStorage.setItem(PROMPTED_KEY, "true");
     const accepted = await OneSignal.Notifications.requestPermission(true);
+    // Recorded AFTER the prompt resolves. Writing it first means a prompt that failed to
+    // appear burns the one chance iOS gives us and the user is never asked again.
+    await AsyncStorage.setItem(PROMPTED_KEY, "true");
 
     if (accepted) {
       // A reminder the user never chose is not a reminder, it is a surprise. Default to a
@@ -110,7 +112,26 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  /**
+   * Turning the reminder on is the other honest moment to ask for permission — the user has
+   * just explicitly asked to be reminded. Without this, someone who skipped the post-session
+   * prompt could set a time and silently never hear from us: iOS drops every push.
+   */
   const setReminderHour = useCallback(async (hour: number | null) => {
+    if (hour !== null && APP_ID) {
+      const granted = await OneSignal.Notifications.getPermissionAsync();
+      if (!granted) {
+        const accepted = await OneSignal.Notifications.requestPermission(true);
+        await AsyncStorage.setItem(PROMPTED_KEY, "true");
+        if (!accepted) {
+          toast.info(
+            "Notifications are off",
+            "Turn them on in Settings → Ittekimasu → Notifications to get your reminder.",
+          );
+          return;
+        }
+      }
+    }
     await persistHour(hour);
   }, []);
 

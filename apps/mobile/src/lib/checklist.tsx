@@ -12,6 +12,7 @@ import {
   type UserChecklistResponse,
   type UserChecklistTaskResponse,
 } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { toast } from "@/lib/toast";
 
 type ChecklistState = {
@@ -52,13 +53,22 @@ function withTaskCompletion(
 }
 
 export function ChecklistProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [checklist, setChecklist] = useState<UserChecklistResponse | null>(
     null,
   );
   const [loading, setLoading] = useState(true);
   const [failed, setFailed] = useState(false);
 
+  // Mounted at the root so /move-date shares this state with the tabs, which means it also
+  // mounts on the sign-in and onboarding screens — where there is no checklist to fetch and
+  // the call would only produce a spurious error toast.
   const refresh = useCallback(async () => {
+    if (!user) {
+      setChecklist(null);
+      setLoading(false);
+      return;
+    }
     setFailed(false);
     try {
       setChecklist(await api.getChecklist());
@@ -68,7 +78,7 @@ export function ChecklistProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     refresh();

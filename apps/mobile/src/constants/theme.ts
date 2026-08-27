@@ -90,6 +90,15 @@ export const fontSize = {
   authButton: 20,
 } as const;
 
+/**
+ * Bottom padding every tab screen's scroll content needs.
+ *
+ * The SDK 55 NativeTabs bar floats above the home indicator and is translucent, so content
+ * scrolls *under* it. At the old 32pt the last row or two of a long list sat behind the
+ * blur, visible but untappable. Covers the bar, the home indicator, and its floating margin.
+ */
+export const TAB_BAR_CLEARANCE = 120;
+
 export const radius = {
   card: 16,
   button: 14,

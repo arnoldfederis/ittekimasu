@@ -118,7 +118,11 @@ public class ChecklistService {
     user.setChecklistTemplate(template);
 
     return UserChecklistResponse.of(
-        copies, template.getVisaType(), template.getDisplayName(), request.targetMoveDate());
+        copies,
+        template.getId(),
+        template.getVisaType(),
+        template.getDisplayName(),
+        request.targetMoveDate());
   }
 
   @Transactional(readOnly = true)
@@ -132,6 +136,7 @@ public class ChecklistService {
     ChecklistTemplate template = user.getChecklistTemplate();
     return UserChecklistResponse.of(
         tasks,
+        template == null ? null : template.getId(),
         template == null ? null : template.getVisaType(),
         template == null ? null : template.getDisplayName(),
         user.getTargetMoveDate());

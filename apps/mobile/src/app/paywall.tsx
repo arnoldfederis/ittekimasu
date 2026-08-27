@@ -46,8 +46,11 @@ export default function PaywallScreen() {
         router.back();
       }
     } catch (error) {
-      // Backing out of Apple's sheet is a decision, not a failure. Say nothing.
-      if (!isPurchaseCancelled(error)) {
+      // Backing out of Apple's sheet is a decision, not a failure — so it gets a neutral
+      // acknowledgement rather than an error toast.
+      if (isPurchaseCancelled(error)) {
+        toast.info("No charge made", "You can upgrade whenever you're ready.");
+      } else {
         toast.fromError(error, "Couldn't complete that purchase.");
       }
     } finally {
@@ -76,7 +79,10 @@ export default function PaywallScreen() {
   }
 
   return (
-    <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top + 8 }}>
+    // A modal sheet already sits below the status bar, but useSafeAreaInsets still reports
+    // the device's full top inset because the provider is mounted at the root. Adding it
+    // here stacks a second ~59pt gap on top of the sheet's own.
+    <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
       <View className="flex-row items-center justify-between px-4 pb-2">
         <Pressable
           accessibilityLabel="Close"

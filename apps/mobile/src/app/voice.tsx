@@ -1,0 +1,133 @@
+import { Image } from "expo-image";
+import { Stack } from "expo-router";
+import type * as Speech from "expo-speech";
+import { useEffect, useState } from "react";
+import { Linking, Pressable, ScrollView, Text, View } from "react-native";
+import { Button } from "@/components/button";
+import { Card } from "@/components/card";
+import { useThemeColors } from "@/constants/theme";
+import {
+  getSelectedVoice,
+  japaneseVoices,
+  setSelectedVoice,
+  speakReading,
+} from "@/lib/speech";
+
+/** Spoken when a voice is picked, so the choice is audible rather than a name on a list. */
+const SAMPLE = "はじめまして";
+
+export default function VoiceScreen() {
+  const colors = useThemeColors();
+  const [voices, setVoices] = useState<Speech.Voice[] | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  useEffect(() => {
+    japaneseVoices().then(setVoices);
+    getSelectedVoice().then(setSelected);
+  }, []);
+
+  async function choose(identifier: string | null) {
+    setSelected(identifier);
+    await setSelectedVoice(identifier);
+    // Play it immediately — a voice name means nothing until you have heard it.
+    speakReading(SAMPLE, identifier);
+  }
+
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: true, title: "Voice" }} />
+
+      <ScrollView
+        className="flex-1 bg-canvas"
+        contentContainerStyle={{ padding: 24, gap: 16 }}
+        contentInsetAdjustmentBehavior="automatic"
+      >
+        <Text className="text-body text-ink-muted">
+          Used when a card&apos;s reading is spoken. Tap one to hear it.
+        </Text>
+
+        <View className="overflow-hidden rounded-card bg-surface">
+          <VoiceRow
+            checked={selected === null}
+            onPress={() => choose(null)}
+            subtitle="Whichever Japanese voice your phone prefers"
+            tint={colors.primary}
+            title="System default"
+          />
+
+          {voices?.map((voice) => (
+            <VoiceRow
+              checked={selected === voice.identifier}
+              key={voice.identifier}
+              onPress={() => choose(voice.identifier)}
+              subtitle={
+                voice.quality === "Enhanced" ? "Enhanced quality" : undefined
+              }
+              tint={colors.primary}
+              title={voice.name}
+            />
+          ))}
+        </View>
+
+        {/*
+          Apps cannot install system voices, so when the phone has only Kyoko this screen has
+          nothing to offer. Saying where to get more is more useful than a list of one.
+        */}
+        {voices !== null && voices.length <= 1 ? (
+          <Card tone="sunken">
+            <Text className="text-body text-ink">Want a different voice?</Text>
+            <Text className="pt-1 text-caption text-ink-muted">
+              iOS ships one Japanese voice. You can add others — including
+              higher-quality ones — in Settings → Accessibility → Spoken Content
+              → Voices → Japanese.
+            </Text>
+            <View className="pt-3">
+              <Button
+                onPress={() => Linking.openSettings()}
+                title="Open Settings"
+                variant="secondary"
+              />
+            </View>
+          </Card>
+        ) : null}
+      </ScrollView>
+    </>
+  );
+}
+
+function VoiceRow({
+  title,
+  subtitle,
+  checked,
+  tint,
+  onPress,
+}: {
+  title: string;
+  subtitle?: string;
+  checked: boolean;
+  tint: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ checked }}
+      className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-surface-sunken"
+      onPress={onPress}
+    >
+      <View className="flex-1 gap-0.5">
+        <Text className="text-body text-ink">{title}</Text>
+        {subtitle ? (
+          <Text className="text-caption text-ink-muted">{subtitle}</Text>
+        ) : null}
+      </View>
+      {checked ? (
+        <Image
+          source="sf:checkmark"
+          style={{ width: 16, height: 16 }}
+          tintColor={tint}
+        />
+      ) : null}
+    </Pressable>
+  );
+}

@@ -1,9 +1,7 @@
-import { router } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
-import { StepProgress } from "@/components/step-progress";
 import { api, type ChecklistTemplateSummary } from "@/lib/api";
 import { useOnboarding } from "@/lib/onboarding";
 import { toast } from "@/lib/toast";
@@ -11,7 +9,8 @@ import { toast } from "@/lib/toast";
 /** Badged as the common case so a first-time user has an obvious default. */
 const MOST_COMMON_VISA_TYPE = "ENGINEER_SPECIALIST";
 
-export default function VisaScreen() {
+/** Step 2. A pane inside the onboarding pager — the footer buttons live on the pager. */
+export function VisaStep() {
   const { purpose, template, setTemplate } = useOnboarding();
   const [templates, setTemplates] = useState<ChecklistTemplateSummary[] | null>(
     null,
@@ -28,18 +27,17 @@ export default function VisaScreen() {
     }
   }, [purpose]);
 
+  // Re-runs when the purpose changes, which is what keeps the list in step with a choice
+  // the user went back and edited.
   useEffect(() => {
     load();
   }, [load]);
 
   return (
     <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 24, gap: 24, paddingBottom: 40 }}
-      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ padding: 24, gap: 24, paddingBottom: 24 }}
+      showsVerticalScrollIndicator={false}
     >
-      <StepProgress step={2} total={3} />
-
       <View className="gap-2">
         <Text className="font-semibold text-ink text-title">
           Which visa are you on?
@@ -121,13 +119,6 @@ export default function VisaScreen() {
           </Text>
         </View>
       ) : null}
-
-      <Button
-        disabled={!template}
-        onPress={() => router.push("/onboarding/move-date")}
-        size="large"
-        title="Continue"
-      />
     </ScrollView>
   );
 }
