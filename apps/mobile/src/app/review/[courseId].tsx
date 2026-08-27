@@ -22,10 +22,13 @@ import {
 } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications";
 import {
+  applyAudioMode,
+  dismissAudioHint,
   getSelectedVoice,
   isSoundEnabled,
   readingOf,
   setSoundEnabled,
+  shouldShowAudioHint,
   speakReading,
   stopSpeaking,
 } from "@/lib/speech";
@@ -93,11 +96,21 @@ export default function ReviewScreen() {
   const [reviewedToday, setReviewedToday] = useState(0);
   const [sound, setSound] = useState(true);
   const [voice, setVoice] = useState<string | null>(null);
+  const [audioHint, setAudioHint] = useState(false);
 
   useEffect(() => {
     isSoundEnabled().then(setSound);
     getSelectedVoice().then(setVoice);
+    shouldShowAudioHint().then(setAudioHint);
+    // Set the audio session on entering a session, not at launch: no reason to touch the
+    // process-wide category until the app actually intends to make noise.
+    applyAudioMode();
   }, []);
+
+  async function hideAudioHint() {
+    setAudioHint(false);
+    await dismissAudioHint();
+  }
 
   // Leaving mid-word would otherwise keep talking over whatever screen comes next.
   useEffect(() => stopSpeaking, []);
@@ -257,6 +270,35 @@ export default function ReviewScreen() {
       {header}
 
       <SegmentedProgress current={index} total={cards.length} />
+
+      {/*
+        iOS silences speech when the ring/silent switch is on, with no error and no way for
+        the app to detect it — the learner just gets nothing and assumes the feature is
+        broken. Shown once, then dismissed for good.
+      */}
+      {audioHint && sound ? (
+        <Pressable
+          accessibilityHint="Dismisses this tip"
+          accessibilityRole="button"
+          className="mx-4 mb-2 flex-row items-center gap-2 rounded-button bg-surface-sunken px-3 py-2"
+          onPress={hideAudioHint}
+        >
+          <Image
+            source="sf:speaker.wave.2"
+            style={{ width: 14, height: 14 }}
+            tintColor={colors.inkMuted}
+          />
+          <Text className="flex-1 text-caption text-ink-muted">
+            Readings are spoken aloud. If you hear nothing, check your phone
+            isn&apos;t on silent.
+          </Text>
+          <Image
+            source="sf:xmark"
+            style={{ width: 12, height: 12 }}
+            tintColor={colors.inkSubtle}
+          />
+        </Pressable>
+      ) : null}
 
       <ScrollView
         className="flex-1"

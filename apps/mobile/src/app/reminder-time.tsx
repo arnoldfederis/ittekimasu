@@ -1,4 +1,3 @@
-import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Switch, Text, View } from "react-native";
@@ -19,6 +18,13 @@ const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
 
 /** Where the toggle lands someone who has never set a time. */
 const DEFAULT_HOUR = 20;
+
+/** "12am", "8am", "1pm" — short enough for a grid cell, unambiguous at a glance. */
+function shortHour(hour: number): string {
+  const period = hour < 12 ? "am" : "pm";
+  const twelve = hour % 12 === 0 ? 12 : hour % 12;
+  return `${twelve}${period}`;
+}
 
 export default function ReminderTimeScreen() {
   const colors = useThemeColors();
@@ -76,27 +82,41 @@ export default function ReminderTimeScreen() {
             <Text className="px-5 pb-2 font-semibold text-caption text-ink-subtle">
               TIME
             </Text>
-            <View className="mx-4 overflow-hidden rounded-card bg-surface">
-              {HOURS.map((hour) => (
-                <Pressable
-                  accessibilityRole="radio"
-                  accessibilityState={{ checked: reminderHour === hour }}
-                  className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-surface-sunken"
-                  key={hour}
-                  onPress={() => choose(hour)}
-                >
-                  <Text className="flex-1 text-body text-ink">
-                    {formatReminderHour(hour)}
-                  </Text>
-                  {reminderHour === hour ? (
-                    <Image
-                      source="sf:checkmark"
-                      style={{ width: 16, height: 16 }}
-                      tintColor={colors.primary}
-                    />
-                  ) : null}
-                </Pressable>
-              ))}
+            {/*
+              A grid, not a 24-row list. Picking one value out of a full day should be a
+              single tap against something you can see all of — a scrolling list hides most
+              of the options and makes "is 3am even here?" a question.
+            */}
+            <View className="mx-4 flex-row flex-wrap gap-2 rounded-card bg-surface p-3">
+              {HOURS.map((hour) => {
+                const isSelected = reminderHour === hour;
+                return (
+                  <Pressable
+                    accessibilityLabel={formatReminderHour(hour)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: isSelected }}
+                    className={`h-12 items-center justify-center rounded-button ${
+                      isSelected
+                        ? "bg-primary"
+                        : "bg-surface-sunken active:opacity-70"
+                    }`}
+                    key={hour}
+                    onPress={() => choose(hour)}
+                    style={{ width: "22.5%", borderCurve: "continuous" }}
+                  >
+                    <Text
+                      className={`text-callout ${
+                        isSelected
+                          ? "font-semibold text-ink-inverse"
+                          : "text-ink"
+                      }`}
+                      style={{ fontVariant: ["tabular-nums"] }}
+                    >
+                      {shortHour(hour)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
             </View>
           </Animated.View>
         ) : null}

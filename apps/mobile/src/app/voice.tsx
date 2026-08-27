@@ -2,13 +2,22 @@ import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import type * as Speech from "expo-speech";
 import { useEffect, useState } from "react";
-import { Linking, Pressable, ScrollView, Text, View } from "react-native";
+import {
+  Linking,
+  Pressable,
+  ScrollView,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useThemeColors } from "@/constants/theme";
 import {
   getSelectedVoice,
   japaneseVoices,
+  playsInSilentMode,
+  setPlaysInSilentMode,
   setSelectedVoice,
   speakReading,
 } from "@/lib/speech";
@@ -20,11 +29,18 @@ export default function VoiceScreen() {
   const colors = useThemeColors();
   const [voices, setVoices] = useState<Speech.Voice[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [silentMode, setSilentMode] = useState(false);
 
   useEffect(() => {
     japaneseVoices().then(setVoices);
     getSelectedVoice().then(setSelected);
+    playsInSilentMode().then(setSilentMode);
   }, []);
+
+  async function toggleSilentMode(enabled: boolean) {
+    setSilentMode(enabled);
+    await setPlaysInSilentMode(enabled);
+  }
 
   async function choose(identifier: string | null) {
     setSelected(identifier);
@@ -45,6 +61,28 @@ export default function VoiceScreen() {
         <Text className="text-body text-ink-muted">
           Used when a card&apos;s reading is spoken. Tap one to hear it.
         </Text>
+
+        {/*
+          The single most common reason audio "doesn't work" — paired with the switch that
+          fixes it. Off by default: speaking out loud on a phone the user deliberately
+          silenced is worse than staying quiet.
+        */}
+        <View className="overflow-hidden rounded-card bg-surface">
+          <View className="min-h-14 flex-row items-center gap-3 px-4 py-3">
+            <View className="flex-1 gap-0.5">
+              <Text className="text-body text-ink">Play even when silent</Text>
+              <Text className="text-caption text-ink-muted">
+                iOS normally mutes readings when your ring/silent switch is off.
+              </Text>
+            </View>
+            <Switch
+              onValueChange={toggleSilentMode}
+              thumbColor={colors.surface}
+              trackColor={{ false: colors.line, true: colors.primary }}
+              value={silentMode}
+            />
+          </View>
+        </View>
 
         <View className="overflow-hidden rounded-card bg-surface">
           <VoiceRow

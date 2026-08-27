@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { setAudioModeAsync } from "expo-audio";
 import * as Speech from "expo-speech";
 
 /** Persisted so someone who studies on a train isn't re-muting every session. */
@@ -6,6 +7,12 @@ const SOUND_KEY = "review.sound";
 
 /** Chosen voice identifier, or absent to let the system pick. */
 const VOICE_KEY = "review.voice";
+
+/** Set once the "check your silent switch" hint has been dismissed. */
+const AUDIO_HINT_KEY = "review.audioHintSeen";
+
+/** Opt-in: speak even when the ring/silent switch is off. */
+const SILENT_MODE_KEY = "review.playInSilentMode";
 
 /**
  * Japanese. iOS picks its own Japanese voice (Kyoko on most devices); naming a specific
@@ -59,6 +66,48 @@ export async function setSelectedVoice(
     return;
   }
   await AsyncStorage.setItem(VOICE_KEY, identifier);
+}
+
+/**
+ * Whether to show the silent-switch hint.
+ *
+ * iOS silences AVSpeechSynthesizer when the ring/silent switch is on, with no error and no
+ * callback — the app cannot detect it, and the learner just gets nothing. Since we cannot
+ * know, we tell them once and let them dismiss it.
+ */
+export async function shouldShowAudioHint(): Promise<boolean> {
+  return (await AsyncStorage.getItem(AUDIO_HINT_KEY)) !== "true";
+}
+
+export async function dismissAudioHint(): Promise<void> {
+  await AsyncStorage.setItem(AUDIO_HINT_KEY, "true");
+}
+
+export async function playsInSilentMode(): Promise<boolean> {
+  // OFF by default, deliberately. Overriding the silent switch without being asked means a
+  // phone that speaks Japanese out loud in a meeting — the exact thing the user flipped
+  // that switch to prevent. Opt-in only.
+  return (await AsyncStorage.getItem(SILENT_MODE_KEY)) === "true";
+}
+
+export async function setPlaysInSilentMode(enabled: boolean): Promise<void> {
+  await AsyncStorage.setItem(SILENT_MODE_KEY, enabled ? "true" : "false");
+  await applyAudioMode();
+}
+
+/**
+ * Pushes the preference into the process-wide audio session.
+ *
+ * AVAudioSession is shared across the app, so setting the category here is what lets
+ * expo-speech play through the mute switch — expo-speech has no such option of its own.
+ */
+export async function applyAudioMode(): Promise<void> {
+  try {
+    await setAudioModeAsync({ playsInSilentMode: await playsInSilentMode() });
+  } catch {
+    // A failed session change just means the default behaviour stands. Not worth a toast:
+    // the silent-switch hint already covers "why can't I hear anything".
+  }
 }
 
 export async function isSoundEnabled(): Promise<boolean> {
