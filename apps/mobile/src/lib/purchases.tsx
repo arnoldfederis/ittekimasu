@@ -1,3 +1,4 @@
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
@@ -13,8 +14,9 @@ import Purchases, {
   type PurchasesOffering,
   type PurchasesPackage,
 } from "react-native-purchases";
-import { api, type EntitlementResponse } from "@/lib/api";
+import type { EntitlementResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { entitlementQuery } from "@/lib/queries";
 
 const API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_API_KEY;
 
@@ -64,12 +66,17 @@ export function isPurchaseCancelled(error: unknown): boolean {
 
 export function PurchasesProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [ready, setReady] = useState(false);
   const [isPremium, setIsPremium] = useState(false);
-  const [entitlement, setEntitlement] = useState<EntitlementResponse | null>(
-    null,
-  );
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+
+  // The server's answer, shared with anything else that asks. Signing out clears the cache,
+  // so this can never describe the previous account.
+  const { data: entitlement = null, refetch: refetchEntitlement } = useQuery({
+    ...entitlementQuery(),
+    enabled: Boolean(user),
+  });
 
   // Configure once per app launch. Calling configure again on every auth change resets the
   // SDK's cached customer info and re-fetches offerings for no benefit.
@@ -143,20 +150,8 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const refresh = useCallback(async () => {
-    if (!user) {
-      setEntitlement(null);
-      return;
-    }
-    try {
-      setEntitlement(await api.getEntitlement());
-    } catch {
-      // Server unreachable. Keep whatever we had; every gate is enforced server-side anyway.
-    }
-  }, [user]);
-
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+    await refetchEntitlement();
+  }, [refetchEntitlement]);
 
   /**
    * Waits for the RevenueCat webhook to reach our own backend.
@@ -167,16 +162,17 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
    */
   const waitForServerEntitlement = useCallback(async () => {
     for (let attempt = 0; attempt < 6; attempt++) {
-      try {
-        const next = await api.getEntitlement();
-        setEntitlement(next);
-        if (next.premium) return;
-      } catch {
+      // staleTime 0 forces a real request each pass — the whole point is to see the value
+      // change, and the cached copy is what we are waiting to invalidate.
+      const next = await queryClient
+        .fetchQuery({ ...entitlementQuery(), staleTime: 0 })
         // Keep trying: a transient failure here is not worth ending the loop over.
-      }
+        .catch(() => null);
+
+      if (next?.premium) return;
       await new Promise((resolve) => setTimeout(resolve, 1500));
     }
-  }, []);
+  }, [queryClient]);
 
   const purchase = useCallback(
     async (pkg: PurchasesPackage) => {

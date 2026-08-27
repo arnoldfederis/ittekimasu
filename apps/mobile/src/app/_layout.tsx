@@ -1,15 +1,23 @@
+import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
+import { OfflineBanner } from "@/components/offline-banner";
 import { radius, useIsDark, useThemeColors } from "@/constants/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ChecklistProvider } from "@/lib/checklist";
 import { initCrashReporting } from "@/lib/crash-reporting";
+import { startNetworkSync } from "@/lib/network";
 import { NotificationsProvider } from "@/lib/notifications";
 import { PurchasesProvider } from "@/lib/purchases";
+import {
+  createQueryClient,
+  persistOptions,
+  startAppStateFocusSync,
+} from "@/lib/query-client";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -18,21 +26,44 @@ SplashScreen.preventAutoHideAsync();
 initCrashReporting();
 
 export default function RootLayout() {
+  // Created once per app launch, not per render: a new QueryClient would throw away every
+  // cached response on the next re-render.
+  const [queryClient] = useState(createQueryClient);
+
+  useEffect(startAppStateFocusSync, []);
+  // Before anything fetches: without it React Query believes the device is always online,
+  // fires into a dead socket and reports "the internet connection appears to be offline".
+  useEffect(startNetworkSync, []);
+
   return (
     // sonner-native drives swipe-to-dismiss through gesture-handler, so the Toaster has to
     // sit inside a GestureHandlerRootView or toasts render but never dismiss by swipe.
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <AuthProvider>
-        {/* Inside AuthProvider: RevenueCat and OneSignal are both keyed by the Firebase UID. */}
-        <PurchasesProvider>
-          <NotificationsProvider>
-            {/* Root-level so /move-date and the tabs share one checklist and one refresh. */}
-            <ChecklistProvider>
-              <Chrome />
-            </ChecklistProvider>
-          </NotificationsProvider>
-        </PurchasesProvider>
-      </AuthProvider>
+      {/*
+        Above AuthProvider: signing out clears the cache, so auth needs the client.
+        Persisted, so a cold start with no connection still has something to render — and
+        so ratings queued on a plane survive the app being killed.
+      */}
+      <PersistQueryClientProvider
+        client={queryClient}
+        onSuccess={() => {
+          // Hydration is done; anything queued offline goes out now.
+          queryClient.resumePausedMutations();
+        }}
+        persistOptions={persistOptions}
+      >
+        <AuthProvider>
+          {/* Inside AuthProvider: RevenueCat and OneSignal are both keyed by the Firebase UID. */}
+          <PurchasesProvider>
+            <NotificationsProvider>
+              {/* Root-level so /move-date and the tabs share one checklist and one refresh. */}
+              <ChecklistProvider>
+                <Chrome />
+              </ChecklistProvider>
+            </NotificationsProvider>
+          </PurchasesProvider>
+        </AuthProvider>
+      </PersistQueryClientProvider>
     </GestureHandlerRootView>
   );
 }
@@ -60,6 +91,8 @@ function Chrome() {
     <ThemeProvider value={navigationTheme}>
       <StatusBar style={isDark ? "light" : "dark"} />
       <RootNavigator />
+      {/* Over the navigator, so it is the same bar on every screen. */}
+      <OfflineBanner />
       <Toaster
         duration={4000}
         // Clears the Dynamic Island / notch. At a small offset the toast renders
@@ -131,6 +164,14 @@ function RootNavigator() {
         />
         {/* A modal too: the paywall interrupts something, and it must be dismissable. */}
         <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
+        {/*
+          A modal: the same three questions as onboarding, for someone who skipped the
+          checklist to get to the decks and has since booked a flight.
+        */}
+        <Stack.Screen
+          name="checklist-setup"
+          options={{ presentation: "modal" }}
+        />
         <Stack.Screen name="settings" />
         <Stack.Screen name="reminder-time" />
         <Stack.Screen name="move-date" />

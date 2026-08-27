@@ -1,11 +1,10 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createContext,
   type ReactNode,
   use,
   useCallback,
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 import {
   api,
@@ -13,13 +12,18 @@ import {
   type UserChecklistTaskResponse,
 } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
-import { toast } from "@/lib/toast";
+import { checklistQuery, queryKeys } from "@/lib/queries";
 
 type ChecklistState = {
   checklist: UserChecklistResponse | null;
   loading: boolean;
   failed: boolean;
   refresh: () => Promise<void>;
+  /**
+   * Adopts a checklist the caller already has in hand — POST /users/me/checklist returns
+   * the whole thing, so onboarding seeds the cache instead of paying for a second fetch.
+   */
+  replace: (next: UserChecklistResponse) => void;
   /** Optimistic: flips locally, rolls back if the PATCH fails. */
   toggleTask: (taskId: string, completed: boolean) => Promise<void>;
 };
@@ -54,57 +58,89 @@ function withTaskCompletion(
 
 export function ChecklistProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const [checklist, setChecklist] = useState<UserChecklistResponse | null>(
-    null,
-  );
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const queryClient = useQueryClient();
 
   // Mounted at the root so /move-date shares this state with the tabs, which means it also
   // mounts on the sign-in and onboarding screens — where there is no checklist to fetch and
-  // the call would only produce a spurious error toast.
-  const refresh = useCallback(async () => {
-    if (!user) {
-      setChecklist(null);
-      setLoading(false);
-      return;
-    }
-    setFailed(false);
-    try {
-      setChecklist(await api.getChecklist());
-    } catch (error) {
-      setFailed(true);
-      toast.fromError(error, "Couldn't load your checklist.");
-    } finally {
-      setLoading(false);
-    }
-  }, [user]);
+  // the request would only produce a spurious error toast.
+  const query = useQuery({ ...checklistQuery(), enabled: Boolean(user) });
 
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
+  const refresh = useCallback(async () => {
+    if (!user) return;
+    await queryClient.invalidateQueries({ queryKey: queryKeys.checklist });
+  }, [queryClient, user]);
+
+  const replace = useCallback(
+    (next: UserChecklistResponse) => {
+      queryClient.setQueryData(queryKeys.checklist, next);
+    },
+    [queryClient],
+  );
+
+  const toggle = useMutation({
+    mutationFn: ({
+      taskId,
+      completed,
+    }: {
+      taskId: string;
+      completed: boolean;
+    }) => api.setTaskCompleted(taskId, completed),
+
+    // Flip immediately — a checkbox that waits on the network feels broken.
+    onMutate: async ({ taskId, completed }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.checklist });
+      const previous = queryClient.getQueryData<UserChecklistResponse>(
+        queryKeys.checklist,
+      );
+      if (previous) {
+        queryClient.setQueryData(
+          queryKeys.checklist,
+          withTaskCompletion(previous, taskId, completed),
+        );
+      }
+      return { previous };
+    },
+
+    onError: (_error, _variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(queryKeys.checklist, context.previous);
+      }
+    },
+
+    meta: { errorMessage: "Couldn't save that. Try again." },
+  });
 
   const toggleTask = useCallback(
     async (taskId: string, completed: boolean) => {
-      const previous = checklist;
-      if (!previous) return;
-
-      // Flip immediately — a checkbox that waits on the network feels broken.
-      setChecklist(withTaskCompletion(previous, taskId, completed));
-
-      try {
-        await api.setTaskCompleted(taskId, completed);
-      } catch (error) {
-        setChecklist(previous);
-        toast.fromError(error, "Couldn't save that. Try again.");
-      }
+      // The mutation reports failure through its own rollback and the shared error toast,
+      // so a rejection here is not the caller's problem — a checkbox has nothing to catch.
+      await toggle.mutateAsync({ taskId, completed }).catch(() => undefined);
     },
-    [checklist],
+    [toggle],
   );
 
   const value = useMemo(
-    () => ({ checklist, loading, failed, refresh, toggleTask }),
-    [checklist, loading, failed, refresh, toggleTask],
+    () => ({
+      checklist: query.data ?? null,
+      // A paused query is not loading — offline with nothing cached it would never resolve,
+      // and the screen would spin until the connection came back.
+      loading:
+        query.isPending && query.fetchStatus !== "paused" && Boolean(user),
+      failed: query.isError,
+      refresh,
+      replace,
+      toggleTask,
+    }),
+    [
+      query.data,
+      query.isPending,
+      query.fetchStatus,
+      query.isError,
+      user,
+      refresh,
+      replace,
+      toggleTask,
+    ],
   );
 
   return <ChecklistContext value={value}>{children}</ChecklistContext>;

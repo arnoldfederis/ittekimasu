@@ -4,6 +4,7 @@ import app.ittekimasu.server.entity.User;
 import app.ittekimasu.server.exception.ResourceNotFoundException;
 import app.ittekimasu.server.repository.UserRepository;
 import app.ittekimasu.server.security.FirebasePrincipal;
+import java.time.Instant;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -53,6 +54,26 @@ public class UserService {
     // nothing for the next reader to puzzle over.
     user.setReminderTimezone(reminderHour == null ? null : reminderTimezone);
 
+    return user;
+  }
+
+  /**
+   * Marks onboarding finished without adopting a checklist — the "I only want the language
+   * decks" path.
+   *
+   * <p>Idempotent, and it never moves an existing timestamp: re-running onboarding later to
+   * build a checklist should not rewrite the day this person actually started.
+   */
+  @Transactional
+  public User completeOnboarding(UUID userId) {
+    User user =
+        userRepository
+            .findById(userId)
+            .orElseThrow(() -> new ResourceNotFoundException("User", userId));
+
+    if (user.getOnboardedAt() == null) {
+      user.setOnboardedAt(Instant.now());
+    }
     return user;
   }
 

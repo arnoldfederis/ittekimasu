@@ -37,8 +37,17 @@ const OPTIONS: Array<{
   },
 ];
 
-/** Step 1. A pane inside the onboarding pager — the footer buttons live on the pager. */
-export function PurposeStep() {
+/**
+ * Step 1. A pane inside the onboarding pager — the footer buttons live on the pager.
+ *
+ * `onJustLearning` is absent when the wizard is opened later to add a checklist: someone
+ * already inside the app does not need to be offered the way out of it again.
+ */
+export function PurposeStep({
+  onJustLearning,
+}: {
+  onJustLearning?: () => void;
+}) {
   const colors = useThemeColors();
   const { purpose, setPurpose } = useOnboarding();
 
@@ -84,6 +93,37 @@ export function PurposeStep() {
           );
         })}
       </View>
+
+      {onJustLearning ? (
+        <View className="gap-3">
+          <Text className="px-1 font-semibold text-caption text-ink-subtle">
+            NOT MOVING?
+          </Text>
+          {/*
+            An explicit answer rather than a "skip" link. Plenty of people want the kana and
+            vocabulary decks and no relocation checklist at all, and making them invent a
+            visa route to reach the decks is how you lose them on the first screen. The
+            checklist stays one tap away from the dashboard afterwards.
+          */}
+          <Card onPress={onJustLearning} tone="sunken">
+            <View className="flex-row items-center gap-4">
+              <Image
+                source="sf:character.book.closed"
+                style={{ width: 28, height: 28 }}
+                tintColor={colors.inkMuted}
+              />
+              <View className="flex-1 gap-1">
+                <Text className="font-semibold text-heading text-ink">
+                  Just here for the language
+                </Text>
+                <Text className="text-caption text-ink-muted">
+                  Skip the checklist and go straight to the decks
+                </Text>
+              </View>
+            </View>
+          </Card>
+        </View>
+      ) : null}
     </ScrollView>
   );
 }

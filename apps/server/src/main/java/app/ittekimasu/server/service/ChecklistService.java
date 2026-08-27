@@ -116,6 +116,11 @@ public class ChecklistService {
 
     user.setTargetMoveDate(request.targetMoveDate());
     user.setChecklistTemplate(template);
+    // Adopting a template is the other way to finish onboarding. Left alone once set, so
+    // rebuilding the checklist against a new move date does not rewrite the original date.
+    if (user.getOnboardedAt() == null) {
+      user.setOnboardedAt(Instant.now());
+    }
 
     return UserChecklistResponse.of(
         copies,

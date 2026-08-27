@@ -52,6 +52,10 @@ public class OneSignalClient {
    * <p>Returns false rather than throwing: a failed reminder is not worth aborting the whole
    * scheduled run over, and the next tick will not retry it — that is deliberate, because a
    * reminder that arrives an hour late is worse than one that never comes.
+   *
+   * <p>The response BODY is what matters, not the status. OneSignal answers 200 with an
+   * {@code errors} object when an external id matches no subscription, so treating 2xx as
+   * success reports a delivery that never happened.
    */
   public boolean send(List<String> externalIds, String heading, String content) {
     if (!isConfigured() || externalIds.isEmpty()) {
@@ -67,18 +71,28 @@ public class OneSignalClient {
             "contents", Map.of("en", content));
 
     try {
-      restClient
-          .post()
-          .uri("/notifications")
-          // Newer OneSignal keys use "Key <token>"; older ones expect "Basic <token>". The
-          // scheme is configurable because getting it wrong is a silent 401.
-          .header("Authorization", "%s %s".formatted(authScheme, apiKey))
-          .contentType(MediaType.APPLICATION_JSON)
-          .body(body)
-          .retrieve()
-          .toBodilessEntity();
+      String response =
+          restClient
+              .post()
+              .uri("/notifications")
+              // Newer OneSignal keys use "Key <token>"; older ones expect "Basic <token>".
+              // The scheme is configurable because getting it wrong is a silent 401.
+              .header("Authorization", "%s %s".formatted(authScheme, apiKey))
+              .contentType(MediaType.APPLICATION_JSON)
+              .body(body)
+              .retrieve()
+              .body(String.class);
 
-      log.info("Sent reminder push to {} recipients", externalIds.size());
+      String payload = response == null ? "" : response;
+      if (payload.contains("\"errors\"")) {
+        log.error(
+            "OneSignal accepted the request but reported errors for {} recipients: {}",
+            externalIds.size(),
+            payload);
+        return false;
+      }
+
+      log.info("OneSignal accepted push for {} recipients: {}", externalIds.size(), payload);
       return true;
     } catch (Exception ex) {
       log.error("OneSignal push failed for {} recipients", externalIds.size(), ex);

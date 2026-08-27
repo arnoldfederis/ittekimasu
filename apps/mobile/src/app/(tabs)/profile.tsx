@@ -1,57 +1,57 @@
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ListRow } from "@/components/list-row";
 import { ScreenHeader } from "@/components/screen-header";
 import { TAB_BAR_CLEARANCE } from "@/constants/theme";
-import { api, type UserResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useChecklist } from "@/lib/checklist";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
 import { usePurchases } from "@/lib/purchases";
-import { toast } from "@/lib/toast";
+import {
+  coursesQuery,
+  dueQuery,
+  meQuery,
+  queryKeys,
+  useInvalidateOnFocus,
+} from "@/lib/queries";
 
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { checklist } = useChecklist();
   const { entitlement, isPremium, refresh } = usePurchases();
   const { reminderHour } = useNotifications();
-  const [me, setMe] = useState<UserResponse | null>(null);
-  const [cardsLearned, setCardsLearned] = useState<number | null>(null);
 
-  const load = useCallback(async () => {
-    try {
-      const [profile, courses] = await Promise.all([
-        api.getMe(),
-        api.getCourses(),
-      ]);
-      setMe(profile);
+  // Same keys the learn tab uses, so switching tabs renders from cache instead of
+  // re-fetching the identical three responses.
+  const { data: me = null } = useQuery(meQuery());
+  const { data: courses } = useQuery(coursesQuery());
 
-      // "Cards learned" spans decks, and only the due endpoint knows how many of each the
-      // user has actually seen. One call per unlocked deck is fine at two or three decks.
-      const sessions = await Promise.all(
-        courses
-          .filter((course) => !course.isPremium || isPremium)
-          .map((course) => api.getDueCards(course.id).catch(() => null)),
-      );
-      setCardsLearned(
-        sessions.reduce(
-          (total, session) => total + (session?.reviewedCardCount ?? 0),
-          0,
-        ),
-      );
-    } catch (error) {
-      toast.fromError(error, "Couldn't load your profile.");
-    }
-  }, [isPremium]);
+  // "Cards learned" spans decks, and only the due endpoint knows how many of each the user
+  // has actually seen. One request per unlocked deck is fine at two or three decks.
+  const sessionQueries = useQueries({
+    queries: (courses ?? [])
+      .filter((course) => !course.isPremium || isPremium)
+      .map((course) => ({ ...dueQuery(course.id), meta: { silent: true } })),
+  });
 
+  const cardsLearned = sessionQueries.some((result) => result.data)
+    ? sessionQueries.reduce(
+        (total, result) => total + (result.data?.reviewedCardCount ?? 0),
+        0,
+      )
+    : null;
+
+  useInvalidateOnFocus([queryKeys.me, queryKeys.courses, ["due"]]);
+
+  // RevenueCat's own state, not a query — the SDK owns it.
   useFocusEffect(
     useCallback(() => {
-      load();
       refresh();
-    }, [load, refresh]),
+    }, [refresh]),
   );
 
   // The server is the source of truth for the plan; the SDK flag only covers the seconds

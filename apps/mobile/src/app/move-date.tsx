@@ -1,3 +1,4 @@
+import { useMutation } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, Text } from "react-native";
@@ -10,14 +11,36 @@ import { formatMoveDate, parseLocalIsoDate, toLocalIsoDate } from "@/lib/dates";
 import { toast } from "@/lib/toast";
 
 export default function MoveDateScreen() {
-  const { checklist, refresh } = useChecklist();
+  const { checklist, replace } = useChecklist();
 
   const [date, setDate] = useState<Date | null>(
     checklist?.targetMoveDate
       ? parseLocalIsoDate(checklist.targetMoveDate)
       : null,
   );
-  const [saving, setSaving] = useState(false);
+
+  const rebuild = useMutation({
+    mutationFn: ({
+      templateId,
+      moveDate,
+    }: {
+      templateId: string;
+      moveDate: Date;
+    }) => api.createChecklist(templateId, toLocalIsoDate(moveDate)),
+
+    onSuccess: (next, { moveDate }) => {
+      // The response is the rebuilt checklist, so the dashboard and the checklist tab are
+      // correct before this screen finishes closing — no refetch in between.
+      replace(next);
+      toast.success(
+        "Move date updated",
+        `Every deadline now counts from ${formatMoveDate(moveDate)}.`,
+      );
+      router.back();
+    },
+
+    meta: { errorMessage: "Couldn't update your move date." },
+  });
 
   const completed = checklist?.completedCount ?? 0;
   const templateId = checklist?.templateId ?? null;
@@ -44,22 +67,9 @@ export default function MoveDateScreen() {
     save();
   }
 
-  async function save() {
+  function save() {
     if (!date || !templateId) return;
-    setSaving(true);
-    try {
-      await api.createChecklist(templateId, toLocalIsoDate(date));
-      await refresh();
-      toast.success(
-        "Move date updated",
-        `Every deadline now counts from ${formatMoveDate(date)}.`,
-      );
-      router.back();
-    } catch (error) {
-      toast.fromError(error, "Couldn't update your move date.");
-    } finally {
-      setSaving(false);
-    }
+    rebuild.mutate({ templateId, moveDate: date });
   }
 
   return (
@@ -91,7 +101,7 @@ export default function MoveDateScreen() {
 
         <Button
           disabled={!date || !templateId}
-          loading={saving}
+          loading={rebuild.isPending}
           onPress={confirm}
           size="large"
           title="Update move date"

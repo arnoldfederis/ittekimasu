@@ -14,7 +14,12 @@ public record UserResponse(
     int longestStreakDays,
     /** 0-23, or null when the daily reminder is off. */
     Integer reminderHour,
-    String reminderTimezone) {
+    String reminderTimezone,
+    /**
+     * Whether onboarding is finished. This, not the checklist task count, is what the client
+     * routes on — someone on the study-only path has no tasks and is still done.
+     */
+    boolean onboarded) {
 
   public static UserResponse from(User user) {
     return new UserResponse(
@@ -25,6 +30,7 @@ public record UserResponse(
         user.getCurrentStreakDays(),
         user.getLongestStreakDays(),
         user.getReminderHour() == null ? null : user.getReminderHour().intValue(),
-        user.getReminderTimezone());
+        user.getReminderTimezone(),
+        user.getOnboardedAt() != null);
   }
 }
