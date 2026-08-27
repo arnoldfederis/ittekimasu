@@ -89,6 +89,8 @@ export type UserChecklistResponse = {
   tasksByCategory: Record<string, UserChecklistTaskResponse[]>;
   completedCount: number;
   totalCount: number;
+  /** The template this was generated from — needed to regenerate against a new move date. */
+  templateId: string | null;
   visaType: string | null;
   templateDisplayName: string | null;
   targetMoveDate: string | null;
@@ -134,6 +136,9 @@ export type DueCardsResponse = {
   cards: CardDue[];
   reviewedCardCount: number;
   totalCardCount: number;
+  /** Cards reviewed today across every deck. Premium has no cap, so this is the only
+   * count the client can show — reviewsRemainingToday is null for them. */
+  reviewedToday: number;
   /** Null for premium: unlimited. */
   dailyLimit: number | null;
   /**
@@ -153,6 +158,8 @@ export type ReviewResult = {
   cardStreakCount: number;
   studyStreakDays: number;
   longestStreakDays: number;
+  /** Cards reviewed today across every deck, including the one just answered. */
+  reviewedToday: number;
   /** Null for premium: unlimited. */
   reviewsRemainingToday: number | null;
 };

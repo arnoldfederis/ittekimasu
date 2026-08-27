@@ -17,6 +17,9 @@ public record DueCardsResponse(
     /** Cards in the deck the learner has reviewed at least once, for the progress bar. */
     int reviewedCardCount,
     int totalCardCount,
+    /** Cards already reviewed today, across every deck. Premium has no cap, so this is the
+     * only way the client can show "you have done N today" — reviewsRemainingToday is null. */
+    int reviewedToday,
     /** Null for premium: unlimited. A sentinel would eventually render as a real number. */
     Integer dailyLimit,
     Integer reviewsRemainingToday,

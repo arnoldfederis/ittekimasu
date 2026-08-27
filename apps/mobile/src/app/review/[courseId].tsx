@@ -21,6 +21,14 @@ import {
   type ReviewRating,
 } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications";
+import {
+  getSelectedVoice,
+  isSoundEnabled,
+  readingOf,
+  setSoundEnabled,
+  speakReading,
+  stopSpeaking,
+} from "@/lib/speech";
 import { toast } from "@/lib/toast";
 
 /**
@@ -80,6 +88,19 @@ export default function ReviewScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [reviewed, setReviewed] = useState(0);
   const [streak, setStreak] = useState(0);
+  // Today's total across every deck, not just this sitting. Reopening a session restarts
+  // "Card 1 of N", which reads as lost progress unless this is on screen too.
+  const [reviewedToday, setReviewedToday] = useState(0);
+  const [sound, setSound] = useState(true);
+  const [voice, setVoice] = useState<string | null>(null);
+
+  useEffect(() => {
+    isSoundEnabled().then(setSound);
+    getSelectedVoice().then(setVoice);
+  }, []);
+
+  // Leaving mid-word would otherwise keep talking over whatever screen comes next.
+  useEffect(() => stopSpeaking, []);
 
   const load = useCallback(async () => {
     setFailed(false);
@@ -87,6 +108,7 @@ export default function ReviewScreen() {
       const next = await api.getDueCards(courseId);
       setSession(next);
       setStreak(next.studyStreakDays);
+      setReviewedToday(next.reviewedToday);
     } catch (error) {
       setFailed(true);
       toast.fromError(error, "Couldn't load your review session.");
@@ -122,6 +144,7 @@ export default function ReviewScreen() {
       try {
         const result = await api.submitReview(card.id, rating);
         setStreak(result.studyStreakDays);
+        setReviewedToday(result.reviewedToday);
         setReviewed((count) => count + 1);
         setRevealed(false);
         setIndex((current) => current + 1);
@@ -156,7 +179,26 @@ export default function ReviewScreen() {
         />
       </Pressable>
 
-      <View className="flex-row items-center gap-1.5">
+      <View className="flex-row items-center gap-3">
+        <Pressable
+          accessibilityLabel={
+            sound ? "Mute pronunciation" : "Unmute pronunciation"
+          }
+          accessibilityRole="button"
+          className="h-10 w-10 items-center justify-center rounded-pill active:bg-surface-sunken"
+          onPress={async () => {
+            const next = !sound;
+            setSound(next);
+            await setSoundEnabled(next);
+          }}
+        >
+          <Image
+            source={sound ? "sf:speaker.wave.2" : "sf:speaker.slash"}
+            style={{ width: 18, height: 18 }}
+            tintColor={colors.inkMuted}
+          />
+        </Pressable>
+
         <Image
           source="sf:flame.fill"
           style={{ width: 18, height: 18 }}
@@ -174,7 +216,7 @@ export default function ReviewScreen() {
 
   if (session === null || failed) {
     return (
-      <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top + 8 }}>
+      <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
         {header}
         {failed ? (
           <View className="gap-3 px-4 pt-8">
@@ -199,10 +241,11 @@ export default function ReviewScreen() {
       <SessionComplete
         courseTitle={session.courseTitle}
         header={header}
-        insetTop={insets.top + 8}
+        insetTop={8}
         limitReached={session.reviewsRemainingToday === 0}
         onClose={close}
         reviewed={reviewed}
+        reviewedToday={reviewedToday}
         streak={streak}
         wasEmpty={cards.length === 0}
       />
@@ -210,7 +253,7 @@ export default function ReviewScreen() {
   }
 
   return (
-    <View className="flex-1 bg-canvas" style={{ paddingTop: insets.top + 8 }}>
+    <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
       {header}
 
       <SegmentedProgress current={index} total={cards.length} />
@@ -224,7 +267,10 @@ export default function ReviewScreen() {
           accessibilityRole="button"
           className="mx-4 items-center gap-5 rounded-card bg-surface px-5 py-10"
           disabled={revealed}
-          onPress={() => setRevealed(true)}
+          onPress={() => {
+            setRevealed(true);
+            if (sound) speakReading(readingOf(card?.backText ?? ""), voice);
+          }}
           style={{ borderCurve: "continuous" }}
         >
           {card?.seen === false ? (
@@ -245,9 +291,27 @@ export default function ReviewScreen() {
               entering={FadeIn.duration(160)}
             >
               <View className="h-px w-16 bg-line" />
-              <Text className="text-center text-heading text-ink">
-                {card?.backText}
-              </Text>
+              <View className="flex-row items-center gap-3">
+                <Text className="text-center text-heading text-ink">
+                  {card?.backText}
+                </Text>
+                {readingOf(card?.backText ?? "") ? (
+                  <Pressable
+                    accessibilityLabel="Play pronunciation"
+                    accessibilityRole="button"
+                    className="h-9 w-9 items-center justify-center rounded-pill active:bg-surface-sunken"
+                    onPress={() =>
+                      speakReading(readingOf(card?.backText ?? ""))
+                    }
+                  >
+                    <Image
+                      source="sf:speaker.wave.2.fill"
+                      style={{ width: 18, height: 18 }}
+                      tintColor={colors.primary}
+                    />
+                  </Pressable>
+                ) : null}
+              </View>
             </Animated.View>
           ) : (
             <CardCaption>Tap to reveal</CardCaption>
@@ -260,25 +324,35 @@ export default function ReviewScreen() {
         style={{ paddingBottom: insets.bottom + 16 }}
       >
         {revealed ? (
-          <Animated.View
-            className="flex-row gap-2"
-            entering={FadeIn.duration(160)}
-          >
-            {RATINGS.map(({ rating, label, border, text }) => (
-              <RatingButton
-                border={border}
-                disabled={submitting}
-                interval={
-                  card?.intervals[
-                    rating.toLowerCase() as Lowercase<ReviewRating>
-                  ]
-                }
-                key={rating}
-                label={label}
-                onPress={() => rate(rating)}
-                text={text}
-              />
-            ))}
+          <Animated.View className="gap-2" entering={FadeIn.duration(160)}>
+            {/*
+              Users read four coloured buttons as a grade out of four. They are not a score:
+              the only thing they change is when the card comes back, and the number under
+              each one already says exactly when. Saying so removes the "am I being marked?"
+              hesitation that makes people rate dishonestly.
+            */}
+            <Text className="text-center text-caption text-ink-subtle">
+              How well did you recall it? This only sets when you&apos;ll see it
+              again.
+            </Text>
+
+            <View className="flex-row gap-2">
+              {RATINGS.map(({ rating, label, border, text }) => (
+                <RatingButton
+                  border={border}
+                  disabled={submitting}
+                  interval={
+                    card?.intervals[
+                      rating.toLowerCase() as Lowercase<ReviewRating>
+                    ]
+                  }
+                  key={rating}
+                  label={label}
+                  onPress={() => rate(rating)}
+                  text={text}
+                />
+              ))}
+            </View>
           </Animated.View>
         ) : (
           // Reserves the row's height so revealing the answer doesn't shift the card upward.
@@ -287,7 +361,7 @@ export default function ReviewScreen() {
 
         <Text className="text-center text-caption text-ink-subtle">
           Card {Math.min(index + 1, cards.length)} of {cards.length} ·{" "}
-          {session.courseTitle}
+          {reviewedToday} reviewed today
         </Text>
       </View>
     </View>
@@ -371,6 +445,7 @@ function SessionComplete({
   insetTop,
   courseTitle,
   reviewed,
+  reviewedToday,
   streak,
   wasEmpty,
   limitReached,
@@ -380,6 +455,7 @@ function SessionComplete({
   insetTop: number;
   courseTitle: string;
   reviewed: number;
+  reviewedToday: number;
   streak: number;
   wasEmpty: boolean;
   limitReached: boolean;
@@ -399,7 +475,7 @@ function SessionComplete({
     ? limitReached
       ? "You've used today's free reviews. They reset tomorrow."
       : `Every ${courseTitle} card is scheduled ahead. Come back when the next batch is due.`
-    : `${reviewed} ${reviewed === 1 ? "card" : "cards"} reviewed. Every one of them is scheduled to come back at the right moment.`;
+    : `${reviewed} ${reviewed === 1 ? "card" : "cards"} this session, ${reviewedToday} today. Every one is scheduled to come back at the right moment.`;
 
   return (
     <View className="flex-1 bg-canvas" style={{ paddingTop: insetTop }}>

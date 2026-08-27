@@ -78,7 +78,8 @@ public class ReviewService {
     requireAccess(course, premium);
 
     LocalDate today = LocalDate.now(APP_ZONE);
-    Integer remaining = remainingReviews(userId, today, premium);
+    int reviewedToday = reviewedToday(userId, today);
+    Integer remaining = remainingReviews(reviewedToday, premium);
 
     // Premium is unlimited per day, but a session still needs a bound: handing back 500 cards
     // is not a session, it is a wall.
@@ -103,6 +104,7 @@ public class ReviewService {
         cards,
         progressRepository.countByUserIdAndCardCourseId(userId, courseId),
         cardRepository.countByCourseId(courseId),
+        reviewedToday,
         premium ? null : FREE_DAILY_REVIEW_LIMIT,
         remaining,
         managedUser(userId).getCurrentStreakDays());
@@ -130,7 +132,7 @@ public class ReviewService {
     boolean alreadyCountedToday =
         progress != null && !progress.getLastReviewedAt().isBefore(startOfDay(today));
 
-    Integer remaining = remainingReviews(userId, today, premium);
+    Integer remaining = remainingReviews(reviewedToday(userId, today), premium);
     if (!alreadyCountedToday && remaining != null && remaining == 0) {
       throw new PaymentRequiredException(
           "That's %d reviews today — the free daily limit. Come back tomorrow, or go unlimited with premium."
@@ -153,6 +155,8 @@ public class ReviewService {
 
     recordStudyDay(user, today);
 
+    int reviewedAfterSave = reviewedToday(userId, today);
+
     return new ReviewResultResponse(
         cardId,
         rating.name(),
@@ -163,7 +167,8 @@ public class ReviewService {
         user.getCurrentStreakDays(),
         user.getLongestStreakDays(),
         // The save above may have consumed a slot, so count again rather than subtracting.
-        remainingReviews(userId, today, premium));
+        reviewedAfterSave,
+        remainingReviews(reviewedAfterSave, premium));
   }
 
   /**
@@ -181,15 +186,15 @@ public class ReviewService {
     user.setLongestStreakDays(Math.max(user.getLongestStreakDays(), user.getCurrentStreakDays()));
   }
 
-  /** Null means unlimited. Premium never runs the count query at all. */
-  private Integer remainingReviews(UUID userId, LocalDate today, boolean premium) {
-    if (premium) {
-      return null;
-    }
-    int reviewedToday =
-        progressRepository.countByUserIdAndLastReviewedAtGreaterThanEqual(
-            userId, startOfDay(today));
-    return Math.max(0, FREE_DAILY_REVIEW_LIMIT - reviewedToday);
+  /** Distinct cards touched since the start of the app-timezone day. */
+  private int reviewedToday(UUID userId, LocalDate today) {
+    return progressRepository.countByUserIdAndLastReviewedAtGreaterThanEqual(
+        userId, startOfDay(today));
+  }
+
+  /** Null means unlimited — premium has no daily cap to count down from. */
+  private Integer remainingReviews(int reviewedToday, boolean premium) {
+    return premium ? null : Math.max(0, FREE_DAILY_REVIEW_LIMIT - reviewedToday);
   }
 
   /**

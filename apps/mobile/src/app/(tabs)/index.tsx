@@ -1,18 +1,11 @@
-import { Image } from "expo-image";
 import { router } from "expo-router";
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ProgressRing } from "@/components/progress-ring";
 import { ScreenHeader } from "@/components/screen-header";
 import { TaskRow } from "@/components/task-row";
-import { useThemeColors } from "@/constants/theme";
+import { TAB_BAR_CLEARANCE } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { daysUntil, useChecklist } from "@/lib/checklist";
 
@@ -27,13 +20,17 @@ function greeting(): string {
 }
 
 export default function DashboardScreen() {
-  const colors = useThemeColors();
   const { user } = useAuth();
   const { checklist, loading, failed, refresh, toggleTask } = useChecklist();
 
   const firstName = user?.displayName?.split(" ")[0];
 
-  // Overdue counts as "this week" — it still needs doing, and hiding it would be worse.
+  // The server sorts by due date, but the response is GROUPED BY CATEGORY — flattening it
+  // concatenates category after category and throws that order away. Without re-sorting,
+  // "next up" showed the first three visa tasks, which for a soon-ish move date are the
+  // ones that came due months ago, while genuinely imminent tasks sat further down.
+  //
+  // Overdue still belongs here: it needs doing, and hiding it would be worse.
   const dueSoon = Object.values(checklist?.tasksByCategory ?? {})
     .flat()
     .filter((task) => {
@@ -41,6 +38,7 @@ export default function DashboardScreen() {
       const days = daysUntil(task.dueDate);
       return days !== null && days <= DUE_SOON_DAYS;
     })
+    .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""))
     .slice(0, MAX_DUE_SOON);
 
   const total = checklist?.totalCount ?? 0;
@@ -49,24 +47,16 @@ export default function DashboardScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE, gap: 16 }}
       contentInsetAdjustmentBehavior="automatic"
     >
+      {/*
+        No bell here. It had no onPress and there is no notification centre to open — an
+        affordance that does nothing is worse than no affordance. Reminders are configured
+        on the profile tab.
+      */}
       <ScreenHeader
         title={firstName ? `${greeting()}, ${firstName}` : greeting()}
-        trailing={
-          <Pressable
-            accessibilityLabel="Notifications"
-            accessibilityRole="button"
-            className="h-11 w-11 items-center justify-center rounded-pill active:bg-surface-sunken"
-          >
-            <Image
-              source="sf:bell"
-              style={{ width: 22, height: 22 }}
-              tintColor={colors.inkMuted}
-            />
-          </Pressable>
-        }
       />
 
       <View className="gap-4 px-4">
@@ -107,8 +97,13 @@ export default function DashboardScreen() {
             </Card>
 
             <View className="gap-2">
+              {/*
+                "Next up", not "Due this week": this list deliberately includes tasks whose
+                date has already passed, and calling a 114-day-old task "due this week" is
+                just wrong.
+              */}
               <Text className="px-1 font-semibold text-caption text-ink-subtle">
-                DUE THIS WEEK
+                NEXT UP
               </Text>
               {dueSoon.length ? (
                 <View className="overflow-hidden rounded-card bg-surface">
@@ -134,7 +129,7 @@ export default function DashboardScreen() {
         <Card tone="accent">
           <CardTitle>Daily practice</CardTitle>
           <CardCaption>
-            Streaks and reviews arrive with the learn tab in step 5
+            A few minutes of Japanese keeps the streak alive
           </CardCaption>
           <View className="pt-3">
             <Button

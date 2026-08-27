@@ -5,6 +5,7 @@ import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ListRow } from "@/components/list-row";
 import { ScreenHeader } from "@/components/screen-header";
+import { TAB_BAR_CLEARANCE } from "@/constants/theme";
 import { api, type UserResponse } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useChecklist } from "@/lib/checklist";
@@ -73,7 +74,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE, gap: 16 }}
       contentInsetAdjustmentBehavior="automatic"
     >
       <ScreenHeader title="Profile" />
@@ -145,6 +146,8 @@ export default function ProfileScreen() {
           />
           <ListRow
             icon="calendar"
+            onPress={() => router.push("/move-date")}
+            showChevron
             title="Move date"
             value={
               checklist?.targetMoveDate

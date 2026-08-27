@@ -1,4 +1,4 @@
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
@@ -85,6 +85,16 @@ export default function SettingsScreen() {
               icon="arrow.clockwise"
               onPress={restorePurchases}
               title="Restore purchases"
+            />
+          </Section>
+
+          <Section title="STUDY">
+            <ListRow
+              icon="speaker.wave.2"
+              onPress={() => router.push("/voice")}
+              showChevron
+              subtitle="Used when a card's reading is spoken"
+              title="Voice"
             />
           </Section>
 

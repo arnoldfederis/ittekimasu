@@ -67,6 +67,7 @@ class ReviewControllerTest {
                 1,
                 4,
                 9,
+                1,
                 19));
 
     mockMvc

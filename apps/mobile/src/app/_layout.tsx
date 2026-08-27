@@ -6,6 +6,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
 import { radius, useIsDark, useThemeColors } from "@/constants/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { ChecklistProvider } from "@/lib/checklist";
 import { initCrashReporting } from "@/lib/crash-reporting";
 import { NotificationsProvider } from "@/lib/notifications";
 import { PurchasesProvider } from "@/lib/purchases";
@@ -25,7 +26,10 @@ export default function RootLayout() {
         {/* Inside AuthProvider: RevenueCat and OneSignal are both keyed by the Firebase UID. */}
         <PurchasesProvider>
           <NotificationsProvider>
-            <Chrome />
+            {/* Root-level so /move-date and the tabs share one checklist and one refresh. */}
+            <ChecklistProvider>
+              <Chrome />
+            </ChecklistProvider>
           </NotificationsProvider>
         </PurchasesProvider>
       </AuthProvider>
@@ -101,6 +105,10 @@ function RootNavigator() {
       screenOptions={{
         headerShown: false,
         contentStyle: { backgroundColor: colors.canvas },
+        // Without this the back button inherits the previous route's name — which for a
+        // tab screen is the literal group name, "(tabs)".
+        headerBackButtonDisplayMode: "minimal",
+        headerBackTitle: "",
       }}
     >
       <Stack.Protected guard={!user}>
@@ -125,6 +133,8 @@ function RootNavigator() {
         <Stack.Screen name="paywall" options={{ presentation: "modal" }} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="reminder-time" />
+        <Stack.Screen name="move-date" />
+        <Stack.Screen name="voice" />
       </Stack.Protected>
     </Stack>
   );

@@ -1,9 +1,6 @@
 import { Image } from "expo-image";
-import { router } from "expo-router";
 import { ScrollView, Text, View } from "react-native";
-import { Button } from "@/components/button";
 import { Card } from "@/components/card";
-import { StepProgress } from "@/components/step-progress";
 import { useThemeColors } from "@/constants/theme";
 import type { VisaPurpose } from "@/lib/api";
 import { useOnboarding } from "@/lib/onboarding";
@@ -40,18 +37,16 @@ const OPTIONS: Array<{
   },
 ];
 
-export default function PurposeScreen() {
+/** Step 1. A pane inside the onboarding pager — the footer buttons live on the pager. */
+export function PurposeStep() {
   const colors = useThemeColors();
   const { purpose, setPurpose } = useOnboarding();
 
   return (
     <ScrollView
-      className="flex-1 bg-canvas"
-      contentContainerStyle={{ padding: 24, gap: 24, paddingBottom: 40 }}
-      contentInsetAdjustmentBehavior="automatic"
+      contentContainerStyle={{ padding: 24, gap: 24, paddingBottom: 24 }}
+      showsVerticalScrollIndicator={false}
     >
-      <StepProgress step={1} total={3} />
-
       <View className="gap-2">
         <Text className="font-semibold text-ink text-title">
           Why are you moving?
@@ -89,13 +84,6 @@ export default function PurposeScreen() {
           );
         })}
       </View>
-
-      <Button
-        disabled={!purpose}
-        onPress={() => router.push("/onboarding/visa")}
-        size="large"
-        title="Continue"
-      />
     </ScrollView>
   );
 }

@@ -61,6 +61,10 @@ public class User {
 	@Column(name = "reminder_timezone", length = 64)
 	private String reminderTimezone;
 
+	/** Local date of the last reminder sent, so the scheduler fires at most once a day. */
+	@Column(name = "last_reminded_on")
+	private LocalDate lastRemindedOn;
+
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	@CurrentTimestamp(event = EventType.INSERT)
 	private Instant createdAt;

@@ -1,22 +1,46 @@
 import { Image } from "expo-image";
-import { router, Stack } from "expo-router";
-import { Pressable, ScrollView, Text, View } from "react-native";
+import { Stack } from "expo-router";
+import { useState } from "react";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useThemeColors } from "@/constants/theme";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
 
 /**
- * Waking hours only. A 3am reminder is not a feature anyone wants, and a full 24-hour list
- * makes the sensible choices harder to find.
+ * Every hour of the day.
+ *
+ * This was briefly cut to four slots, back when delivery came from OneSignal dashboard
+ * campaigns and each offered hour needed its own segment and recurring campaign. The
+ * server-side scheduler (ReminderService) removed that ceiling — it reads the hour straight
+ * from the database — so there is no longer any cost to offering the whole day. Someone on
+ * a night shift in Japan has as much right to 3am as anyone.
  */
-const HOURS = [7, 8, 9, 12, 17, 18, 19, 20, 21, 22];
+const HOURS = Array.from({ length: 24 }, (_, hour) => hour);
+
+/** Where the toggle lands someone who has never set a time. */
+const DEFAULT_HOUR = 20;
 
 export default function ReminderTimeScreen() {
   const colors = useThemeColors();
   const { reminderHour, setReminderHour } = useNotifications();
 
-  async function choose(hour: number | null) {
+  // Remembered so toggling off and back on returns to the hour they picked, rather than
+  // silently resetting to the default.
+  const [lastHour, setLastHour] = useState(reminderHour ?? DEFAULT_HOUR);
+  const enabled = reminderHour !== null;
+
+  async function toggle(on: boolean) {
+    if (on) {
+      await setReminderHour(lastHour);
+    } else {
+      setLastHour(reminderHour ?? DEFAULT_HOUR);
+      await setReminderHour(null);
+    }
+  }
+
+  async function choose(hour: number) {
+    setLastHour(hour);
     await setReminderHour(hour);
-    router.back();
   }
 
   return (
@@ -28,59 +52,55 @@ export default function ReminderTimeScreen() {
         contentContainerStyle={{ paddingBottom: 32, paddingTop: 16, gap: 16 }}
         contentInsetAdjustmentBehavior="automatic"
       >
-        <Text className="px-5 text-callout text-ink-muted">
-          A short nudge to keep the streak going. Change it or switch it off
-          whenever.
-        </Text>
-
         <View className="mx-4 overflow-hidden rounded-card bg-surface">
-          <Option
-            checked={reminderHour === null}
-            label="Off"
-            onPress={() => choose(null)}
-            tint={colors.primary}
-          />
-          {HOURS.map((hour) => (
-            <Option
-              checked={reminderHour === hour}
-              key={hour}
-              label={formatReminderHour(hour)}
-              onPress={() => choose(hour)}
-              tint={colors.primary}
+          <View className="min-h-14 flex-row items-center gap-3 px-4 py-3">
+            <View className="flex-1 gap-0.5">
+              <Text className="text-body text-ink">Daily reminder</Text>
+              <Text className="text-caption text-ink-muted">
+                {enabled
+                  ? `Every day at ${formatReminderHour(reminderHour)}`
+                  : "A short nudge to keep your streak going"}
+              </Text>
+            </View>
+            <Switch
+              onValueChange={toggle}
+              thumbColor={colors.surface}
+              trackColor={{ false: colors.line, true: colors.primary }}
+              value={enabled}
             />
-          ))}
+          </View>
         </View>
+
+        {enabled ? (
+          <Animated.View entering={FadeIn.duration(160)}>
+            <Text className="px-5 pb-2 font-semibold text-caption text-ink-subtle">
+              TIME
+            </Text>
+            <View className="mx-4 overflow-hidden rounded-card bg-surface">
+              {HOURS.map((hour) => (
+                <Pressable
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: reminderHour === hour }}
+                  className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-surface-sunken"
+                  key={hour}
+                  onPress={() => choose(hour)}
+                >
+                  <Text className="flex-1 text-body text-ink">
+                    {formatReminderHour(hour)}
+                  </Text>
+                  {reminderHour === hour ? (
+                    <Image
+                      source="sf:checkmark"
+                      style={{ width: 16, height: 16 }}
+                      tintColor={colors.primary}
+                    />
+                  ) : null}
+                </Pressable>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
       </ScrollView>
     </>
-  );
-}
-
-function Option({
-  label,
-  checked,
-  tint,
-  onPress,
-}: {
-  label: string;
-  checked: boolean;
-  tint: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ checked }}
-      className="min-h-14 flex-row items-center gap-3 px-4 py-3 active:bg-surface-sunken"
-      onPress={onPress}
-    >
-      <Text className="flex-1 text-body text-ink">{label}</Text>
-      {checked ? (
-        <Image
-          source="sf:checkmark"
-          style={{ width: 16, height: 16 }}
-          tintColor={tint}
-        />
-      ) : null}
-    </Pressable>
   );
 }

@@ -12,7 +12,7 @@ import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ScreenHeader } from "@/components/screen-header";
 import { TaskRow } from "@/components/task-row";
-import { useThemeColors } from "@/constants/theme";
+import { TAB_BAR_CLEARANCE, useThemeColors } from "@/constants/theme";
 import { categoryLabel, useChecklist } from "@/lib/checklist";
 
 const DISCLAIMER_KEY = "ittekimasu.checklistDisclaimerDismissed";
@@ -40,7 +40,7 @@ export default function ChecklistScreen() {
   return (
     <ScrollView
       className="flex-1 bg-canvas"
-      contentContainerStyle={{ paddingBottom: 32, gap: 16 }}
+      contentContainerStyle={{ paddingBottom: TAB_BAR_CLEARANCE, gap: 16 }}
       contentInsetAdjustmentBehavior="automatic"
     >
       <ScreenHeader
