@@ -1,7 +1,7 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { router, useLocalSearchParams } from "expo-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Pressable,
@@ -13,6 +13,7 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/button";
 import { Card, CardCaption } from "@/components/card";
+import { SegmentedProgress } from "@/components/segmented-progress";
 import { useThemeColors } from "@/constants/theme";
 import {
   ApiError,
@@ -22,7 +23,7 @@ import {
   type ReviewRating,
 } from "@/lib/api";
 import { useNotifications } from "@/lib/notifications";
-import { dueQuery } from "@/lib/queries";
+import { dueQuery, queryKeys } from "@/lib/queries";
 import { REVIEW_MUTATION_KEY } from "@/lib/query-client";
 import {
   applyAudioMode,
@@ -75,6 +76,32 @@ const RATINGS: {
   },
 ];
 
+/**
+ * " — the next batch is due in 6 days" or nothing at all.
+ *
+ * Naming the day is the difference between a deck that looks finished and one that is
+ * simply resting.
+ */
+function describeReturn(nextDueDate: string | null): string {
+  if (!nextDueDate) return "";
+  const days = Math.round(
+    (new Date(`${nextDueDate}T00:00:00`).getTime() -
+      new Date().setHours(0, 0, 0, 0)) /
+      86_400_000,
+  );
+  if (days <= 0) return "";
+  if (days === 1) return " and the next is due tomorrow";
+  return ` and the next batch is due in ${days} days`;
+}
+
+/** For the undo label, so it reads "Undo Good" rather than "Undo GOOD". */
+const RATING_LABELS: Record<ReviewRating, string> = {
+  AGAIN: "Again",
+  HARD: "Hard",
+  GOOD: "Good",
+  EASY: "Easy",
+};
+
 /** "1 day" / "6 days" — the interval preview under each rating. */
 function formatInterval(days: number): string {
   return days === 1 ? "1 day" : `${days} days`;
@@ -85,6 +112,7 @@ export default function ReviewScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const { promptAfterFirstSession } = useNotifications();
+  const queryClient = useQueryClient();
 
   const [session, setSession] = useState<DueCardsResponse | null>(null);
   const [index, setIndex] = useState(0);
@@ -97,6 +125,12 @@ export default function ReviewScreen() {
   const [sound, setSound] = useState(true);
   const [voice, setVoice] = useState<string | null>(null);
   const [audioHint, setAudioHint] = useState(false);
+  /** The answer that can still be taken back, cleared once the next card is rated. */
+  const [lastAnswer, setLastAnswer] = useState<{
+    cardId: string;
+    rating: ReviewRating;
+    index: number;
+  } | null>(null);
 
   useEffect(() => {
     isSoundEnabled().then(setSound);
@@ -196,6 +230,18 @@ export default function ReviewScreen() {
     onSuccess: (result) => {
       setStreak(result.studyStreakDays);
       setReviewedToday(result.reviewedToday);
+
+      /*
+       * An inline onSuccess REPLACES the one in setMutationDefaults, so without this a live
+       * session invalidates nothing at all. The learn and profile tabs hid it by
+       * invalidating on focus; the seen-cards list and the study grid have no such cover and
+       * were simply stale.
+       *
+       * Not the due queries: this screen holds its own snapshot and the learn tab refreshes
+       * on focus, so refetching a session mid-session is work with nothing to show for it.
+       */
+      queryClient.invalidateQueries({ queryKey: queryKeys.seenCards });
+      queryClient.invalidateQueries({ queryKey: queryKeys.studyDays });
     },
 
     onError: (error) => {
@@ -218,10 +264,53 @@ export default function ReviewScreen() {
       // Deliberately not gated on isPending: offline every rating stays pending until there
       // is a connection, and gating would let one card lock the whole session.
       if (!card) return;
+      setLastAnswer({ cardId: card.id, rating, index });
       submit.mutate({ cardId: card.id, rating });
     },
-    [card, submit],
+    [card, index, submit],
   );
+
+  /**
+   * Takes back the answer just given and puts the card back on screen.
+   *
+   * Four buttons sit side by side under a thumb and the app deliberately never asks "are you
+   * sure?" — so the way to make an honest rating feel safe is to make a wrong one
+   * reversible. Offline it is a no-op: the rating itself has not reached the server yet.
+   */
+  const undo = useMutation({
+    mutationFn: ({ cardId }: { cardId: string }) => api.undoReview(cardId),
+
+    onMutate: ({ cardId: _cardId }) => {
+      if (!lastAnswer) return;
+      setIndex(lastAnswer.index);
+      // Revealed, because the learner has already seen this answer — hiding it again would
+      // make them tap through a card they were in the middle of correcting.
+      setRevealed(true);
+      setReviewed((count) => Math.max(0, count - 1));
+      setReviewedToday((count) => Math.max(0, count - 1));
+
+      // Say it again. The card is back on screen mid-correction, and hearing the reading is
+      // most of what the reveal is for.
+      const restored = cards[lastAnswer.index];
+      if (sound && restored) {
+        speakReading(
+          spokenTextOf(restored.frontText, restored.backText),
+          voice,
+        );
+      }
+
+      setLastAnswer(null);
+    },
+
+    onSettled: () => {
+      // Whether or not the server had something to take back, the card's state moved.
+      queryClient.invalidateQueries({ queryKey: queryKeys.seenCards });
+    },
+
+    // A 404 means the server had nothing to take back. The card is already back on screen
+    // and re-rating it will overwrite whatever is there, so saying so would only worry them.
+    meta: { silent: true },
+  });
 
   const header = (
     <View className="flex-row items-center justify-between px-4 pb-2">
@@ -320,7 +409,11 @@ export default function ReviewScreen() {
         header={header}
         insetTop={8}
         limitReached={session.reviewsRemainingToday === 0}
+        nextDueDate={session.nextDueDate}
         onClose={close}
+        pacedOut={
+          session.unseenCardCount > 0 && session.newCardsRemainingToday === 0
+        }
         reviewed={reviewed}
         reviewedToday={reviewedToday}
         streak={streak}
@@ -436,6 +529,29 @@ export default function ReviewScreen() {
         className="gap-3 px-4 pt-4"
         style={{ paddingBottom: insets.bottom + 16 }}
       >
+        {/*
+          Outside the revealed branch on purpose: rating a card hides the answer and moves
+          on, so an undo that only appeared after flipping the NEXT card would arrive a beat
+          too late to be the thing you reach for.
+        */}
+        {lastAnswer ? (
+          <Pressable
+            accessibilityLabel={`Undo ${lastAnswer.rating.toLowerCase()}`}
+            accessibilityRole="button"
+            className="mb-2 flex-row items-center justify-center gap-1.5 self-center rounded-pill px-3 py-1 active:bg-surface-sunken"
+            onPress={() => undo.mutate({ cardId: lastAnswer.cardId })}
+          >
+            <Image
+              source="sf:arrow.uturn.backward"
+              style={{ width: 13, height: 13 }}
+              tintColor={colors.inkMuted}
+            />
+            <Text className="text-caption text-ink-muted">
+              Undo {RATING_LABELS[lastAnswer.rating]}
+            </Text>
+          </Pressable>
+        ) : null}
+
         {revealed ? (
           <Animated.View className="gap-2" entering={FadeIn.duration(160)}>
             {/*
@@ -484,32 +600,6 @@ export default function ReviewScreen() {
 }
 
 /** One segment per card, filled as the session moves through them. */
-function SegmentedProgress({
-  current,
-  total,
-}: {
-  current: number;
-  total: number;
-}) {
-  const segments = useMemo(
-    () => Array.from({ length: total }, (_, i) => i),
-    [total],
-  );
-
-  return (
-    <View className="flex-row gap-1 px-4 pb-2">
-      {segments.map((segment) => (
-        <View
-          className={`h-1 flex-1 rounded-pill ${
-            segment < current ? "bg-primary" : "bg-surface-sunken"
-          }`}
-          key={segment}
-        />
-      ))}
-    </View>
-  );
-}
-
 /**
  * Two lines: the rating, and what it schedules. Showing the interval on every button rather
  * than only the highlighted one is the touch equivalent of the same idea — there is no hover
@@ -564,6 +654,8 @@ function SessionComplete({
   streak,
   wasEmpty,
   limitReached,
+  nextDueDate,
+  pacedOut,
   onClose,
 }: {
   header: React.ReactNode;
@@ -574,6 +666,10 @@ function SessionComplete({
   streak: number;
   wasEmpty: boolean;
   limitReached: boolean;
+  /** ISO date this deck's next card is due, if anything here has been reviewed. */
+  nextDueDate: string | null;
+  /** Today's intake of new cards is spent, but the deck still holds unseen ones. */
+  pacedOut: boolean;
   onClose: () => void;
 }) {
   const colors = useThemeColors();
@@ -583,13 +679,17 @@ function SessionComplete({
   const title = wasEmpty
     ? limitReached
       ? "That's today's reviews"
-      : "Nothing due right now"
+      : pacedOut
+        ? "That's today's new cards"
+        : "Nothing due right now"
     : "Session complete";
 
   const body = wasEmpty
     ? limitReached
       ? "You've used today's free reviews. They reset tomorrow."
-      : `Every ${courseTitle} card is scheduled ahead. Come back when the next batch is due.`
+      : pacedOut
+        ? "A fresh batch arrives tomorrow. Meeting a handful of new cards a day is what makes them stick — a hundred at once is cramming, and cramming fades."
+        : `Every ${courseTitle} card is scheduled ahead${describeReturn(nextDueDate)}. Spacing them out is what makes them stick.`
     : `${reviewed} ${reviewed === 1 ? "card" : "cards"} this session, ${reviewedToday} today. Every one is scheduled to come back at the right moment.`;
 
   return (

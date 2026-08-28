@@ -16,6 +16,7 @@ import app.ittekimasu.server.entity.User;
 import app.ittekimasu.server.dto.response.EntitlementResponse;
 import app.ittekimasu.server.security.FirebasePrincipal;
 import app.ittekimasu.server.service.EntitlementService;
+import app.ittekimasu.server.service.ReviewService;
 import app.ittekimasu.server.service.UserService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
@@ -44,6 +45,8 @@ class UserControllerTest {
   @MockitoBean private FirebaseAuth firebaseAuth;
   @MockitoBean private UserService userService;
   @MockitoBean private EntitlementService entitlementService;
+  // The controller reads the study grid through it; this slice never exercises that route.
+  @MockitoBean private ReviewService reviewService;
 
   @BeforeEach
   void stubFirebase() throws Exception {

@@ -7,6 +7,8 @@ import type {
   EntitlementResponse,
   ReviewRating,
   ReviewResult,
+  SeenCard,
+  StudyDay,
   UserChecklistResponse,
   UserChecklistTaskResponse,
   UserResponse,
@@ -31,6 +33,43 @@ export const api = {
    */
   completeOnboarding: () =>
     request<UserResponse>("/users/me/onboarding", { method: "POST" }),
+
+  /** The days behind the profile's study grid — roughly the last twenty weeks. */
+  getStudyDays: () => request<StudyDay[]>("/users/me/study-days"),
+
+  /** Every card the learner has answered, for the seen-cards browser. */
+  getSeenCards: () => request<SeenCard[]>("/users/me/cards"),
+
+  /**
+   * Forgets a card: back to unseen, taught again from scratch. Distinct from undoReview,
+   * which takes back one answer.
+   */
+  forgetCard: (cardId: string) =>
+    request<void>(`/users/me/cards/${cardId}`, { method: "DELETE" }),
+
+  /**
+   * Re-rates every seen card, optionally within one deck. Maintenance, not study: it spends
+   * no daily allowance and moves no streak.
+   */
+  rateAllCards: (rating: ReviewRating, courseId?: string) =>
+    request<{ affected: number }>("/users/me/cards", {
+      method: "PATCH",
+      body: { rating, courseId: courseId ?? null },
+    }),
+
+  /** Forgets every seen card, optionally within one deck. */
+  forgetAllCards: (courseId?: string) =>
+    request<{ affected: number }>(
+      courseId ? `/users/me/cards?courseId=${courseId}` : "/users/me/cards",
+      { method: "DELETE" },
+    ),
+
+  /**
+   * Starts learning over: every card unseen, streak zeroed, study grid cleared. Distinct
+   * from forgetAllCards, which is deck maintenance and leaves the record of days studied.
+   */
+  resetProgress: () =>
+    request<{ affected: number }>("/users/me/progress", { method: "DELETE" }),
 
   /** Required by App Store review guideline 5.1.1(v). */
   deleteMe: () => request<void>("/users/me", { method: "DELETE" }),
@@ -88,6 +127,13 @@ export const api = {
       method: "POST",
       body: { rating },
     }),
+
+  /**
+   * Takes back the last answer for one card. 404 when there is nothing to undo, which the
+   * review screen treats as "the moment has passed" rather than an error worth a toast.
+   */
+  undoReview: (cardId: string) =>
+    request<void>(`/reviews/${cardId}`, { method: "DELETE" }),
 
   setTaskCompleted: (taskId: string, completed: boolean) =>
     request<UserChecklistTaskResponse>(`/checklist-tasks/${taskId}`, {

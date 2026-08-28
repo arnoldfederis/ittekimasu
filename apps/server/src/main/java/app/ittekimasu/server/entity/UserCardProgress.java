@@ -50,6 +50,35 @@ public class UserCardProgress {
 	@Column(name = "last_reviewed_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	private Instant lastReviewedAt;
 
+	/** The most recent answer. Null only for rows written before the undo snapshot existed. */
+	@Enumerated(EnumType.STRING)
+	@Column(name = "last_rating", length = 16)
+	private ReviewRating lastRating;
+
+	/*
+	 * The state this row held before the most recent review, so one answer can be taken back.
+	 * All null together, and null across the board means there is nothing to undo.
+	 */
+
+	@Column(name = "previous_ease_factor")
+	private Double previousEaseFactor;
+
+	@Column(name = "previous_interval_days")
+	private Integer previousIntervalDays;
+
+	@Column(name = "previous_streak_count")
+	private Integer previousStreakCount;
+
+	@Column(name = "previous_next_review_date")
+	private LocalDate previousNextReviewDate;
+
+	/**
+	 * Null when the review being undone was the FIRST for this card — there was no earlier
+	 * state, so undoing it means deleting the row and returning the card to "unseen".
+	 */
+	@Column(name = "previous_last_reviewed_at", columnDefinition = "TIMESTAMP WITH TIME ZONE")
+	private Instant previousLastReviewedAt;
+
 	@Column(name = "created_at", columnDefinition = "TIMESTAMP WITH TIME ZONE", nullable = false)
 	@CurrentTimestamp(event = EventType.INSERT)
 	private Instant createdAt;

@@ -1,6 +1,6 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRef, useState } from "react";
-import { ScrollView, useWindowDimensions, View } from "react-native";
+import { ScrollView, Text, useWindowDimensions, View } from "react-native";
 import { Button } from "@/components/button";
 import { MoveDateStep } from "@/components/onboarding/move-date-step";
 import { PurposeStep } from "@/components/onboarding/purpose-step";
@@ -9,6 +9,7 @@ import { StepProgress } from "@/components/step-progress";
 import { api } from "@/lib/api";
 import { useChecklist } from "@/lib/checklist";
 import { toLocalIsoDate } from "@/lib/dates";
+import { useIsOnline } from "@/lib/network";
 import { useOnboarding } from "@/lib/onboarding";
 import { toast } from "@/lib/toast";
 
@@ -36,6 +37,9 @@ export function ChecklistWizard({
   const { width } = useWindowDimensions();
   const { purpose, template, targetMoveDate } = useOnboarding();
   const { replace } = useChecklist();
+  // The last step POSTs. Offline the mutation pauses instead of failing, so the button would
+  // spin forever with no explanation.
+  const online = useIsOnline();
 
   const pager = useRef<ScrollView>(null);
   const [page, setPage] = useState(0);
@@ -78,6 +82,8 @@ export function ChecklistWizard({
     Boolean(targetMoveDate),
   ][page];
 
+  const lastStep = page === STEPS - 1;
+
   function finish() {
     if (!template || !targetMoveDate) return;
     build.mutate({ templateId: template.id, moveDate: targetMoveDate });
@@ -100,7 +106,10 @@ export function ChecklistWizard({
         showsHorizontalScrollIndicator={false}
       >
         <View style={{ width }}>
-          <PurposeStep onJustLearning={onJustLearning} />
+          <PurposeStep
+            justLearningDisabled={!online}
+            onJustLearning={onJustLearning}
+          />
         </View>
         <View style={{ width }}>
           <VisaStep />
@@ -111,12 +120,18 @@ export function ChecklistWizard({
       </ScrollView>
 
       <View className="gap-2 px-6 pt-3 pb-8">
+        {lastStep && !online ? (
+          <Text className="pb-1 text-center text-caption text-ink-muted">
+            Your checklist is built on the server — reconnect to finish.
+          </Text>
+        ) : null}
+
         <Button
-          disabled={!canContinue}
+          disabled={!canContinue || (lastStep && !online)}
           loading={build.isPending}
-          onPress={() => (page === STEPS - 1 ? finish() : goTo(page + 1))}
+          onPress={() => (lastStep ? finish() : goTo(page + 1))}
           size="large"
-          title={page === STEPS - 1 ? "Build my checklist" : "Continue"}
+          title={lastStep ? "Build my checklist" : "Continue"}
         />
         {page > 0 ? (
           <Button

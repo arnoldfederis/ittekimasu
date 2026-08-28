@@ -101,6 +101,37 @@ export type EntitlementResponse = {
   dailyReviewLimit: number | null;
 };
 
+/**
+ * One day the user studied. Days with nothing are ABSENT, not zeroes — the client knows the
+ * window it asked for and fills the gaps itself.
+ */
+export type StudyDay = {
+  /** ISO date in Asia/Tokyo, matching the streak columns. */
+  date: string;
+  reviewCount: number;
+};
+
+/** A card the learner has answered, as listed in the seen-cards browser. */
+export type SeenCard = {
+  cardId: string;
+  frontText: string;
+  backText: string;
+  cardType: string;
+  courseId: string;
+  courseTitle: string;
+  /** Null for cards answered before the app started recording the rating. */
+  lastRating: ReviewRating | null;
+  intervalDays: number;
+  nextReviewDate: string;
+  streakCount: number;
+  /**
+   * What each answer would schedule from where the card stands NOW. Easy on a card already
+   * six days out is twenty-odd days, not six — the multiplier applies to the current
+   * interval, and showing it beats surprising someone with it.
+   */
+  intervals: IntervalPreview;
+};
+
 export type ReviewRating = "AGAIN" | "HARD" | "GOOD" | "EASY";
 
 /** What each button would schedule, in days. Computed server-side — never recomputed here. */
@@ -134,6 +165,19 @@ export type DueCardsResponse = {
    */
   reviewsRemainingToday: number | null;
   studyStreakDays: number;
+  /**
+   * ISO date the soonest scheduled card in this deck comes back, or null if nothing here has
+   * been reviewed yet. Without it "All caught up" reads as "this deck is finished".
+   */
+  nextDueDate: string | null;
+  /**
+   * First-time cards left in today's intake, ACROSS every deck. Zero with `unseenCardCount`
+   * above zero means the deck is paced, not finished — a distinction the copy has to make or
+   * "All caught up" appears over ninety cards the learner has never seen.
+   */
+  newCardsRemainingToday: number;
+  /** Cards in this deck never answered. */
+  unseenCardCount: number;
 };
 
 export type ReviewResult = {

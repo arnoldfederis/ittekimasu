@@ -33,6 +33,7 @@ A Japan relocation checklist + spaced-repetition learning app. Built for the Rev
 - **`FirebaseTokenFilter` is NOT a `@Component`.** Boot would auto-register it as a plain servlet filter *and* it sits in the security chain; the earlier copy gets its SecurityContext wiped by `SecurityContextHolderFilter`, so valid tokens return 401. `SecurityConfig` constructs it.
 - `HandlerTypePredicate` is in `org.springframework.web.method` in Spring 7 (moved from `...web.servlet.mvc.condition`).
 - Migrations live in `db/migrations` (plural), set via `spring.flyway.locations`.
+- **A seed migration must never insert an enum value the Java enum lacks.** `cards.card_type` is a plain VARCHAR with no check constraint, so `'KANA'` inserted happily and then blew up at READ time when Hibernate could not map it — taking out `GET /courses/{id}/due` for the whole deck. Add the constant to `CardType` in the same change as the seed.
 - `users.email` is intentionally NOT unique — Apple private relay can issue different addresses for the same person. `firebase_uid` is the identity key.
 
 ## Mobile structure (apps/mobile/)
@@ -67,9 +68,10 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 ### Offline (apps/mobile/src/lib/network.ts)
 - **`expo-network` drives `onlineManager`.** Without it React Query assumes always-online, fires into a dead socket, and the raw "The internet connection appears to be offline" reaches the user as a toast. Uses `isInternetReachable`, not `isConnected` — plane wifi and captive portals report connected while nothing gets through.
 - The cache is **persisted to AsyncStorage** (7 days, `gcTime` matched to it, `buster` to throw it away after a response-shape change). Entitlement is excluded: premium is re-read from the server every launch and gates nothing on its own.
-- **Ratings given offline are queued, not lost**: `networkMode: "offlineFirst"` plus a mutationFn registered through `setMutationDefaults(REVIEW_MUTATION_KEY)`, which is what lets a rating replay after the app has been killed and relaunched. The review screen advances the card in `onMutate`, never `onSuccess` — offline that never fires and the session would freeze on card one.
+- **Ratings given offline are queued, not lost**: `networkMode: "online"` (the DEFAULT — never `offlineFirst`, which fires the request anyway and only pauses the retries, so with `retry: false` it just errors and the answer is lost) plus a mutationFn registered through `setMutationDefaults(REVIEW_MUTATION_KEY)`, which is what lets a rating replay after the app has been killed and relaunched. The review screen advances the card in `onMutate`, never `onSuccess` — offline that never fires and the session would freeze on card one.
 - **The server timestamps a review when it SYNCS, not when it was answered.** A plane session that uploads next morning counts toward that day's cap and streak (`ReviewService.APP_ZONE` is Asia/Tokyo). Fixing it properly means accepting a client `reviewedAt`.
 - Over-answering offline on the free plan gets 402s on replay. Those are silent everywhere else, so replayed rejections raise one throttled notice — otherwise the work vanishes without a word.
+- **Screens that exist only to write are unreachable offline**: the profile rows for /move-date and /reminder-time are disabled, because a page whose every control is greyed out is worse than a door that does not open. The controls inside them are gated too, for the connection that drops while the screen is open. Same for the checklist wizard's final step and the study-only card. A paused mutation neither fails nor completes, so without this the button spins forever and the setting looks saved when the server never heard about it.
 - A paused query is NOT loading: it never resolves offline, so screens check `fetchStatus === "paused"` and show "not saved on this device yet" instead of a spinner that runs forever.
 
 ### OneSignal (apps/mobile/src/lib/notifications.tsx)
@@ -79,6 +81,10 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
 - The hour is the **user's** timezone, not `APP_ZONE`. Half these users aren't in Japan yet, and 8pm has to mean their 8pm.
 - Accepting the prompt defaults the reminder to 20:00 rather than leaving it off — but a reminder nobody chose is a surprise, so the profile row makes it obvious and killable.
 - Needs a **prebuild**: `onesignal-expo-plugin` adds the iOS Notification Service Extension and the `aps-environment` entitlement. Plugin `mode` follows `APP_ENV`.
+
+### Speech (apps/mobile/src/lib/speech.ts)
+- **Voice selection needs no network.** `Speech.getAvailableVoicesAsync()` reads what iOS already has installed; the Enhanced/Premium voices are downloaded by the user in iOS Settings, never by the app.
+- **Any screen that speaks must call `applyAudioMode()` on mount.** AVAudioSession is process-wide and only written by `setPlaysInSilentMode`, so on a fresh launch a screen inherits whatever category iOS defaulted to — previews stayed muted by the ring switch even with the preference already ON, on the one screen whose job is auditioning voices.
 
 ### Sentry
 - `initCrashReporting()` runs at **module scope** in the root layout, not in an effect — a crash during the first render is exactly what it exists to catch, and an effect runs too late.
@@ -127,7 +133,8 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - Deliberately topic-agnostic: a course is just an ordered deck, so ward-office vocabulary or a non-Japanese topic is a seed, not a migration.
   - Card shape: front is the word as written, back is `reading · meaning` so the learner recalls the reading, not just the gloss.
   - `GET /courses` returns premium decks too, with `cardCount`. The learn tab dims them rather than hiding them — seeing what exists is what makes the paywall read as an unlock.
-  - **N5 vocabulary has not been checked against an official JLPT list.** Worth a proofread before launch; spaced repetition makes a wrong reading stick.
+  - **No deck has been checked against an official JLPT list** (V6 seeds N5, V13 seeds N4/N3/Ward Office). Worth a proofread by a native or advanced speaker before launch; spaced repetition makes a wrong reading stick. The seeds are verified only for structure: contiguous ordering, unique fronts within a deck, and no word repeated ACROSS decks — re-teaching an N5 word at N4 is the sloppiness that gets noticed.
+  - The Ward Office deck is the app's differentiator and its riskiest content: it is vocabulary, NOT immigration guidance, and the same disclaimer as the checklist applies.
   - **Hiragana and Katakana (104 cards each) are free and sort first.** The N5 deck writes its readings in hiragana, so it silently assumed the learner could already read kana — that was the app's real starting wall. 46 gojūon + 25 dakuten/handakuten + 33 yōon per script. Excluded on purpose: the katakana long-vowel mark ー and extended foreign-sound combos (ファ, ティ), neither of which works as a standalone card with a spoken answer.
   - Kana cards break the `reading · meaning` shape: front is the character, back is romaji, `card_type = 'KANA'`. A kana IS its reading. `speech.ts` therefore speaks the **front** when the back has no `·` (`spokenTextOf`), or a Japanese voice would read "shi" as English.
 - `UserCardProgress` (ease_factor, interval_days, next_review_date, streak_count, last_reviewed_at) — unique on (user_id, card_id)
@@ -136,7 +143,15 @@ Tabs use `NativeTabs` from `expo-router/unstable-native-tabs` (SDK 55+ syntax: `
   - `last_reviewed_at` drives the free daily cap. Only the latest review per card survives, so the cap counts **distinct cards touched today**: re-rating a card you already answered today is free.
 - `users.onboarded_at` — when onboarding finished, null until it has. **NOT** the same as having a checklist: someone on the study-only path is onboarded with zero tasks. `UserResponse.onboarded` is what the client routes on; counting checklist tasks (the old rule) made a checklist compulsory and trapped language-only users in the visa picker forever. Set by adopting a template AND by `POST /users/me/onboarding`, never overwritten once set.
 - `users.reminder_hour` (0-23, null = off) / `reminder_timezone` — the daily push reminder. See the OneSignal section for why this lives in the database rather than only as a tag.
+- `UserStudyDay` (user, studied_on, review_count) — one row per day studied, unique on (user_id, studied_on). Drives the profile's contribution grid.
+  - NOT a review-history table: a date and a count, never which cards or how they were rated. `user_card_progress` cannot answer this — it keeps only the LATEST review of each card, so a month of daily drilling leaves no trace of the month.
+  - Written by a **native upsert** (`ON CONFLICT DO UPDATE`), not read-then-write: two reviews in the same instant would both see "no row yet" and the second insert would trip the unique constraint.
+  - The streak columns on `users` stay authoritative — they are read on every due request, and recomputing them from this table would be slower for nothing.
+  - Backfilled in V14 from `last_studied_on`, which is the only day that was ever recorded. Earlier days cannot be invented.
 - `users.current_streak_days` / `longest_streak_days` / `last_studied_on` — the study-day streak.
+  - **A day with nothing due does not break it.** A first non-AGAIN answer schedules a card six days out, so clearing a deck buys days of enforced silence — resetting the streak for that is the algorithm punishing its own success, and the app's whole design principle is no punitive streak loss. `ReviewService.studyGapWasEmpty` decides, and it must be read BEFORE the review is saved: saving reschedules the card being answered and erases the evidence that it was overdue.
+  - It still only advances when the user actually reviews something, so a six-day gap with nothing due yields +1, not +6. These are study days, not calendar days.
+  - "Accessible decks" means free-only for a free user. A locked premium deck is not work they skipped.
   - Not derivable from `user_card_progress` (only the latest review per card is kept, so drilling the same 20 cards daily would look like one study day). Cheaper than a review-history table.
   - A gap of two or more days restarts at **1**, not 0 — the learner did study today and the card should say so.
 - `Entitlement` (is_premium, revenuecat_customer_id, expires_at, last_event_type) — one row per user, unique on user_id, written ONLY by the webhook
@@ -154,6 +169,12 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | UserController | GET | `/users/me/entitlement` | — | `EntitlementResponse` |
 | UserController | PATCH | `/users/me/reminders` | `UpdateRemindersRequest` | `UserResponse` |
 | UserController | POST | `/users/me/onboarding` | — | `UserResponse` |
+| UserController | GET | `/users/me/study-days` | — | `List<StudyDayResponse>` |
+| UserController | GET | `/users/me/cards` | — | `List<SeenCardResponse>` |
+| UserController | DELETE | `/users/me/cards/{cardId}` | — | 204 |
+| UserController | PATCH | `/users/me/cards` | `BulkRatingRequest` | `BulkCardsResponse` |
+| UserController | DELETE | `/users/me/cards` | query `courseId?` | `BulkCardsResponse` |
+| UserController | DELETE | `/users/me/progress` | — | `BulkCardsResponse` |
 | ChecklistController | GET | `/templates` | query `purpose?` | `List<ChecklistTemplateSummaryResponse>` |
 | ChecklistController | GET | `/templates/{visaType}` | — | `ChecklistTemplateDetailResponse` |
 | ChecklistController | POST | `/users/me/checklist` | `CreateChecklistRequest` | `UserChecklistResponse` |
@@ -162,6 +183,7 @@ Paths below are as declared on the controller. Every one is served under `/api` 
 | CourseController | GET | `/courses` | query `topic?` | `List<CourseSummaryResponse>` |
 | CourseController | GET | `/courses/{courseId}/due` | — | `DueCardsResponse` |
 | ReviewController | POST | `/reviews/{cardId}` | `SubmitReviewRequest` | `ReviewResultResponse` |
+| ReviewController | DELETE | `/reviews/{cardId}` | — | 204 |
 | RevenueCatWebhookController | POST | `/webhooks/revenuecat` | `RevenueCatEventRequest` | 200 |
 
 ## SM-2 algorithm (SpacedRepetitionService)
@@ -180,10 +202,15 @@ New cards start at ease 2.5 and interval 1, so the first non-AGAIN answer takes 
 - Both endpoints go through `ReviewService`; `GET /courses/{id}/due` returns **due cards first (soonest first), then unseen ones**, so a backlog is cleared before new material is piled on top of it.
 - Every due card carries `intervals` (what each of the four buttons would schedule). Computed server-side so the algorithm has exactly one implementation — the client must never recompute it.
 - Day boundary is **`Asia/Tokyo` for everyone** (`ReviewService.APP_ZONE`), not a per-user timezone. A settings screen, not an MVP.
+- **`NEW_CARDS_PER_DAY = 10` paces FIRST-TIME cards across every deck — premium included.** Not a paywall: a hundred unfamiliar characters in one sitting is cramming, and without it a 104-card deck is exhausted in an afternoon, leaving the app nothing to offer for the six days SM-2 then imposes. Reviews are untouched — everything due comes back the day it is due, and due cards fill a session BEFORE new ones, because burying a backlog under new words is how a deck becomes unmanageable.
+  - Counted as "progress rows created today": a row is created the first time a card is answered, so its creation date IS the day the card became seen. No column to keep in step.
+  - `DueCardsResponse.newCardsRemainingToday` + `unseenCardCount` let the client tell **paced** from **finished**. Without both, the learn tab says "All caught up" over ninety cards the learner has never seen.
+  - `hasWorkAvailable` respects it too, or the daily reminder would nudge someone towards cards the app has already decided to withhold until tomorrow.
 - Free cap is `ReviewService.FREE_DAILY_REVIEW_LIMIT = 20`, enforced server-side. Past it, `POST /reviews/{cardId}` returns **402**, which the client treats as the paywall trigger (`ApiError.requiresPremium`). A premium deck returns 402 for the same reason. Premium skips both checks — `ReviewService` asks `EntitlementService.isPremium`, never the client.
 - `dailyLimit` / `reviewsRemainingToday` are **null for premium**, not a sentinel like -1: a sentinel eventually renders inside "{limit} cards a day".
 - A premium session is still capped at `PREMIUM_SESSION_SIZE = 50` cards. Unlimited per day, but 500 cards in one sitting is a wall, not a session.
 - `DueCardsResponse` returns counts, not just cards: empty `cards` with `reviewsRemainingToday > 0` means "nothing due", with `0` it means "allowance spent". Different copy, so the client needs to tell them apart.
+- It also carries **`nextDueDate`** (the soonest scheduled card in THAT deck). Without it "All caught up" reads as "this deck is finished" — the learn tab says "back in 6 days" and the finish screen names the day. Spaced repetition is the product; the silence between sessions has to be explained, not just imposed.
 
 ## Entitlement sync (EntitlementService)
 Webhook events INITIAL_PURCHASE / RENEWAL / UNCANCELLATION / PRODUCT_CHANGE / SUBSCRIPTION_EXTENDED → `isPremium = true`.
@@ -198,8 +225,8 @@ Premium is ALWAYS checked server-side from the DB, never from a client-supplied 
 - After a purchase the client polls `GET /users/me/entitlement` for a few seconds (`waitForServerEntitlement`). The purchase is instant on-device but premium is decided from *our* database, so without the poll a paying user can still hit 402.
 
 ## Free vs premium
-- **Free:** complete checklist for the user's own visa (all tasks), JLPT N5 deck, 20 reviews/day, streaks, reminders
-- **Premium ($4.99/mo or $29.99/yr, 7-day trial):** N4 + N3 decks, unlimited reviews, extra decks (ward-office vocabulary)
+- **Free:** complete checklist for the user's own visa (all tasks), Hiragana + Katakana + JLPT N5 decks, 20 reviews/day, streaks, reminders
+- **Premium ($4.99/mo or $29.99/yr, 7-day trial):** JLPT N4 (100) + N3 (100) + Ward Office (55) decks, unlimited reviews
 
 ## Checklist content
 Categories: `VISA_IMMIGRATION`, `HOUSING`, `BANKING_MONEY`, `WORK_ADMIN`, `LANGUAGE`, `LOGISTICS`.
@@ -213,11 +240,16 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 - `onboarding/` — step 1 offers **"Just here for the language"**, which calls `POST /users/me/onboarding` and lands on the decks with no checklist. An explicit answer rather than a skip link: not everyone who installs this is moving, and making them invent a visa route to reach the decks loses them on the first screen. One screen, three horizontal panes (`components/onboarding/checklist-wizard.tsx`): purpose → visa route → move date. The answers live in `lib/onboarding.tsx` (provider on the onboarding layout) and are submitted **once**, on the last pane — a half-written checklist on the server is worse than none.
 - `(tabs)/index.tsx` — dashboard: progress ring, up to 3 tasks due within 7 days (overdue included), streak card. Shares `lib/checklist.tsx` state with the checklist tab so an optimistic toggle updates both.
 - `(tabs)/checklist.tsx` — full checklist grouped by category
-- `(tabs)/learn.tsx` — streak card, active deck with progress and due count, dimmed premium decks. Invalidates on focus (`useInvalidateOnFocus`), or finishing a session leaves a stale "Review 12 cards" button behind.
+- `(tabs)/learn.tsx` — active deck with progress, due count and, when caught up, when it comes back. **No streak card**: the profile's grid owns the streak, and two places showing it disagreed the moment one was stale. Dimmed premium decks below. Invalidates on focus (`useInvalidateOnFocus`), or finishing a session leaves a stale "Review 12 cards" button behind.
+- `cards/index.tsx` → `cards/[courseId].tsx` — decks first, then that deck's cards. A flat list of every seen card is hundreds of rows the moment someone gets going: slow to render and impossible to scan. The detail list is a **FlatList**, not a ScrollView, for the same reason. Each expanded card shows what every answer would schedule FROM WHERE IT IS NOW (Easy on a six-day card is twenty-odd days, not six — the multiplier applies to the current interval), and deck-wide actions live behind an **ellipsis in the navigation bar** opening a **real UIMenu** via `@react-native-menu/menu`. Two hand-rolled versions came first — a Modal sheet with a scrim, then an anchored JS popover — and both read as "not quite an iOS menu", because that is exactly what they were. The native control costs a `pod install` + rebuild and is worth it. The icon is bare: no chip, no circle, and NOT the `ellipsis.circle` symbol, whose ring renders hairline-thin at that size. Shown only above ONE card, since "set all" over a single card is the per-card action with extra steps. Within that menu only the irreversible action confirms; re-rating just applies, because the toast reports the count and every card keeps its own undo. Not under the list — below 104 rows is somewhere nobody scrolls. Removing every seen card pops back to the deck list, since this screen exists only to show seen cards and an empty one after a deliberate wipe is a dead end.
+- **Two different resets, and the difference is the point.** A deck's "remove all seen cards" clears scheduling and leaves the streak and the study grid alone — those record days the learner really did turn up, and deleting a deck's progress does not un-happen them. Settings → "Start learning over" (`DELETE /users/me/progress`) is the one that erases the streak, `last_studied_on` and every `user_study_days` row too, because there erasing the history IS the request. Without the second action the first one has to choose between lying about the past and leaving a profile that reads "0 cards learned · 12 day streak".
+- **Bulk re-rate and bulk forget are maintenance, not study**: no daily allowance spent, no streak moved, no study day recorded. Marking a hundred cards at once is "I have forgotten this deck", and charging a free learner a week of allowance for it — or drawing a day on the grid they did not earn — would both be wrong.
+  - Single-card re-rate IS a real review (it spends a daily slot); the bulk version is not. Editing a card's text is deliberately absent everywhere: cards are shared content, so an edit would either corrupt the deck for everyone or need a per-user override table.
 - `review/[courseId].tsx` — the flashcard session. A **modal, not a tab**: one task the learner starts and finishes, and the tab bar would invite them to wander out half-done.
-- `(tabs)/profile.tsx` — avatar initial, plan card (free shows the cap + Upgrade, premium shows the renewal date), three stat tiles, account rows
-- `paywall.tsx` — modal. Prices come from `product.priceString`, never hardcoded: already localised, and already right when App Store Connect pricing changes. Annual preselected.
+- `(tabs)/profile.tsx` — avatar initial, **study grid** (20 weeks, GitHub-style, streak as its caption because a grid needs a moment's reading and "12 days" does not), plan card (free shows the cap + Upgrade, premium shows the renewal date), two stat tiles (cards learned, checklist), account rows
+- `paywall.tsx` — modal. The benefit list must never promise kana or N5 — those are free, and a list that offers what the reader already has discredits the rest of it. Prices come from `product.priceString`, never hardcoded: already localised, and already right when App Store Connect pricing changes. Annual preselected.
 - `checklist-setup.tsx` — the checklist wizard again, as a modal, for someone who chose the study-only path and later needs the checklist. Shares `components/onboarding/checklist-wizard.tsx` with onboarding; a second copy of that flow would drift. Its own `OnboardingProvider`, so backing out halfway leaves no draft behind.
+- The reminder is **skipped entirely** for anyone who already studied today or whose every card is scheduled ahead (`ReminderService.isWorthReminding`). "A few cards is all it takes to keep your streak" sent to someone with nothing to open is how a push channel gets muted, which costs more than the one notification gains.
 - `reminder-time.tsx` — the daily reminder picker. Waking hours only (7–22), plus Off. A full 24-hour list buries the sensible choices, and nobody wants a 3am nudge.
 - `settings.tsx` — manage subscription (deep-links to Apple's own screen; there is no in-app cancel), restore purchases, legal links, sign out, delete account.
   - Privacy and terms are **hosted pages**, not in-app screens — App Store Connect needs a public privacy URL to submit at all. `LEGAL_BASE_URL` must be live before submission or the links 404 into a rejection.
@@ -225,6 +257,8 @@ MVP ships ONE template: `ENGINEER_SPECIALIST` (技術・人文知識・国際業
 Design principle carried from a prior project: positive reinforcement only. No red X, no "wrong", no punitive streak loss. "Again" is a neutral scheduling signal.
 - The rating buttons are **Again = neutral ink, Hard = amber, Good = green, Easy = teal**. Deliberately no red on "Again", per the palette rule in `global.css`.
 - Every button shows its own interval ("Good / 6 days") rather than only a highlighted one — there is no hover state on touch, and seeing all four is what makes honest self-rating feel safe.
+- **One step of undo** (`DELETE /reviews/{cardId}`, V15). Four buttons under one thumb and no "are you sure?" — the way to keep rating frictionless is to make a wrong tap reversible. `user_card_progress` carries a `previous_*` snapshot written on every review; a null `previous_last_reviewed_at` means that review was the card's FIRST, so undo deletes the row and the card goes back to unseen. The snapshot is cleared after use: one step only, never a walk backwards through state the row no longer has.
+- Undo deliberately does NOT touch the day streak or the study-day count. The learner did study today, and a mis-tap is not a reason to take that away.
 
 ## Shipaton requirements
 - First public release must happen during the submission window

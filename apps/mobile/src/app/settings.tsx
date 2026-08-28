@@ -1,11 +1,13 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { ListRow } from "@/components/list-row";
+import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { useIsOnline } from "@/lib/network";
 import { usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
@@ -20,9 +22,12 @@ const MANAGE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
 const LEGAL_BASE_URL = "https://ittekimasu.app";
 
 export default function SettingsScreen() {
+  const queryClient = useQueryClient();
+  const online = useIsOnline();
   const { signOut, forgetOnboarded } = useAuth();
   const { restore } = usePurchases();
   const [busy, setBusy] = useState(false);
+  const bannerClearance = useOfflineBannerClearance();
 
   async function restorePurchases() {
     setBusy(true);
@@ -39,6 +44,36 @@ export default function SettingsScreen() {
     } finally {
       setBusy(false);
     }
+  }
+
+  const resetProgress = useMutation({
+    mutationFn: () => api.resetProgress(),
+    onSuccess: (result) => {
+      // Everything derived from progress is now wrong: decks, due counts, the grid, the
+      // streak on /users/me and the seen-cards browser.
+      queryClient.invalidateQueries();
+      toast.success(
+        `${result.affected} ${result.affected === 1 ? "card" : "cards"} reset`,
+        "Every deck starts from the beginning.",
+      );
+    },
+    meta: { errorMessage: "Couldn't reset your progress." },
+  });
+
+  function confirmReset() {
+    // An Alert, not a toast: this erases the study grid and the streak as well as the cards.
+    Alert.alert(
+      "Start learning over?",
+      "Every card goes back to unseen, and your streak and study history are cleared. Your checklist and subscription are untouched. This cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Reset",
+          style: "destructive",
+          onPress: () => resetProgress.mutate(),
+        },
+      ],
+    );
   }
 
   function confirmDelete() {
@@ -78,7 +113,11 @@ export default function SettingsScreen() {
 
       <ScrollView
         className="flex-1 bg-canvas"
-        contentContainerStyle={{ paddingBottom: 32, gap: 16, paddingTop: 16 }}
+        contentContainerStyle={{
+          paddingBottom: 32 + bannerClearance,
+          gap: 16,
+          paddingTop: 16,
+        }}
         contentInsetAdjustmentBehavior="automatic"
       >
         <View className="gap-4 px-4">
@@ -106,6 +145,25 @@ export default function SettingsScreen() {
               showChevron
               subtitle="Used when a card's reading is spoken"
               title="Voice"
+            />
+          </Section>
+
+          <Section title="LEARNING">
+            {/*
+              Deliberately separate from a deck's "remove all seen cards": that one is
+              maintenance and leaves the streak alone, because those days were really
+              studied. Here, erasing that history is the point of the request.
+            */}
+            <ListRow
+              disabled={!online || resetProgress.isPending}
+              icon="arrow.counterclockwise"
+              onPress={confirmReset}
+              subtitle={
+                online
+                  ? "Cards, streak and study history"
+                  : "Needs a connection"
+              }
+              title="Start learning over"
             />
           </Section>
 

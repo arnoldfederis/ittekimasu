@@ -19,6 +19,8 @@ export const queryKeys = {
   entitlement: ["entitlement"] as const,
   checklist: ["checklist"] as const,
   courses: ["courses"] as const,
+  studyDays: ["study-days"] as const,
+  seenCards: ["seen-cards"] as const,
   templates: (purpose?: VisaPurpose) =>
     ["templates", purpose ?? "all"] as const,
   due: (courseId: string) => ["due", courseId] as const,
@@ -38,6 +40,22 @@ export const entitlementQuery = () =>
     // Every gate is enforced server-side anyway, so a failure here is not worth a toast —
     // it would fire on the paywall, mid-purchase, where it reads as "your payment broke".
     meta: { silent: true },
+  });
+
+export const studyDaysQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.studyDays,
+    queryFn: () => api.getStudyDays(),
+    // The grid is decoration on a screen that already works; a failure here is not worth
+    // interrupting someone's profile over.
+    meta: { silent: true },
+  });
+
+export const seenCardsQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.seenCards,
+    queryFn: () => api.getSeenCards(),
+    meta: { errorMessage: "Couldn't load your cards." },
   });
 
 export const checklistQuery = () =>
