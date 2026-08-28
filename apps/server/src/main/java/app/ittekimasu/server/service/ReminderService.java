@@ -31,10 +31,13 @@ public class ReminderService {
 
   private final UserRepository userRepository;
   private final OneSignalClient oneSignal;
+  private final ReviewService reviewService;
 
-  public ReminderService(UserRepository userRepository, OneSignalClient oneSignal) {
+  public ReminderService(
+      UserRepository userRepository, OneSignalClient oneSignal, ReviewService reviewService) {
     this.userRepository = userRepository;
     this.oneSignal = oneSignal;
+    this.reviewService = reviewService;
   }
 
   /**
@@ -70,6 +73,24 @@ public class ReminderService {
   }
 
   /**
+   * Whether this reminder would say anything true.
+   *
+   * <p>Two ways to be noise, and both train the learner to swipe the notification away:
+   *
+   * <ul>
+   *   <li>They already studied today — the copy promises to keep a streak that is safe.
+   *   <li>Every card is scheduled days ahead. Clearing a deck buys six days of silence from
+   *       the algorithm, and a nudge to open an app with nothing in it is worse than none.
+   * </ul>
+   */
+  private boolean isWorthReminding(User user) {
+    if (LocalDate.now(ReviewService.APP_ZONE).equals(user.getLastStudiedOn())) {
+      return false;
+    }
+    return reviewService.hasWorkAvailable(user.getId());
+  }
+
+  /**
    * Runs every 15 minutes rather than hourly: a user's timezone can be offset by 30 or 45
    * minutes (India, Nepal, Chatham), and an hourly tick would drift against them.
    */
@@ -84,6 +105,10 @@ public class ReminderService {
     List<User> due =
         userRepository.findAllByReminderHourNotNull().stream()
             .filter(user -> isDue(user, now))
+            // Only now, on the handful of users whose hour has actually come round: the
+            // check is two queries each, which is fine per tick and pointless for everyone
+            // else.
+            .filter(this::isWorthReminding)
             .toList();
 
     if (due.isEmpty()) {

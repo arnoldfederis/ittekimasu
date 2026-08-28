@@ -45,8 +45,11 @@ const OPTIONS: Array<{
  */
 export function PurposeStep({
   onJustLearning,
+  justLearningDisabled = false,
 }: {
   onJustLearning?: () => void;
+  /** Offline: finishing onboarding this way still needs a round trip to the server. */
+  justLearningDisabled?: boolean;
 }) {
   const colors = useThemeColors();
   const { purpose, setPurpose } = useOnboarding();
@@ -105,7 +108,11 @@ export function PurposeStep({
             visa route to reach the decks is how you lose them on the first screen. The
             checklist stays one tap away from the dashboard afterwards.
           */}
-          <Card onPress={onJustLearning} tone="sunken">
+          <Card
+            disabled={justLearningDisabled}
+            onPress={onJustLearning}
+            tone="sunken"
+          >
             <View className="flex-row items-center gap-4">
               <Image
                 source="sf:character.book.closed"
@@ -117,7 +124,9 @@ export function PurposeStep({
                   Just here for the language
                 </Text>
                 <Text className="text-caption text-ink-muted">
-                  Skip the checklist and go straight to the decks
+                  {justLearningDisabled
+                    ? "Reconnect to skip the checklist"
+                    : "Skip the checklist and go straight to the decks"}
                 </Text>
               </View>
             </View>

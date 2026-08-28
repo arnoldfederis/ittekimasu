@@ -7,14 +7,21 @@ import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ScreenHeader } from "@/components/screen-header";
 import { TAB_BAR_CLEARANCE, useThemeColors } from "@/constants/theme";
 import type { CourseSummary, DueCardsResponse } from "@/lib/api";
+import { daysUntil } from "@/lib/checklist";
 import { usePurchases } from "@/lib/purchases";
 import {
   coursesQuery,
   dueQuery,
-  meQuery,
   queryKeys,
   useInvalidateOnFocus,
 } from "@/lib/queries";
+
+/** "tomorrow" / "in 6 days" — the tail of "back …". */
+function formatReturn(days: number): string {
+  if (days <= 0) return "today";
+  if (days === 1) return "tomorrow";
+  return `in ${days} days`;
+}
 
 export default function LearnScreen() {
   const colors = useThemeColors();
@@ -25,7 +32,6 @@ export default function LearnScreen() {
   // paying and the webhook landing.
   const premium = entitlement?.premium || isPremium;
 
-  const { data: me } = useQuery(meQuery());
   const {
     data: courses = null,
     isError: failed,
@@ -56,21 +62,16 @@ export default function LearnScreen() {
     })),
   });
 
-  const sessions: Record<string, DueCardsResponse> = Object.fromEntries(
-    sessionQueries
-      .map((result) => result.data)
-      .filter((session) => session !== undefined)
-      .map((session) => [session.courseId, session]),
+  // Zipped by index — useQueries answers in the order it was asked. Keeping the whole
+  // result, not just the data, is what lets a deck say it failed instead of quietly
+  // rendering as "All caught up".
+  const sessionByCourse = new Map(
+    unlocked.map((course, index) => [course.id, sessionQueries[index]]),
   );
 
   // Finishing a session changes the streak and the due count. Without this the way back
   // leaves a stale "Review 12 cards" button behind.
   useInvalidateOnFocus([queryKeys.me, queryKeys.courses, ["due"]]);
-
-  const streaks = {
-    current: me?.currentStreakDays ?? 0,
-    longest: me?.longestStreakDays ?? 0,
-  };
 
   function retry() {
     for (const queryKey of [queryKeys.me, queryKeys.courses, ["due"]]) {
@@ -90,28 +91,6 @@ export default function LearnScreen() {
       />
 
       <View className="gap-4 px-4">
-        <Card tone="accent">
-          <View className="flex-row items-center gap-4">
-            <Image
-              source="sf:flame.fill"
-              style={{ width: 32, height: 32 }}
-              tintColor={colors.accent}
-            />
-            <View className="flex-1 gap-1">
-              <CardTitle>
-                {streaks.current === 0
-                  ? "No streak yet"
-                  : `${streaks.current} day${streaks.current === 1 ? "" : "s"} in a row`}
-              </CardTitle>
-              <CardCaption>
-                {streaks.current === 0
-                  ? "Review a few cards today to start one."
-                  : `Longest run so far: ${streaks.longest} day${streaks.longest === 1 ? "" : "s"}.`}
-              </CardCaption>
-            </View>
-          </View>
-        </Card>
-
         {isPending && !failed && !waitingOffline ? (
           <ActivityIndicator className="py-8" />
         ) : null}
@@ -138,13 +117,18 @@ export default function LearnScreen() {
           </Card>
         ) : null}
 
-        {unlocked.map((course) => (
-          <ActiveCourseCard
-            course={course}
-            key={course.id}
-            session={sessions[course.id] ?? null}
-          />
-        ))}
+        {unlocked.map((course) => {
+          const result = sessionByCourse.get(course.id);
+          return (
+            <ActiveCourseCard
+              course={course}
+              failed={result?.isError ?? false}
+              key={course.id}
+              onRetry={() => result?.refetch()}
+              session={result?.data ?? null}
+            />
+          );
+        })}
 
         {locked.length ? (
           <Text className="px-1 pt-2 font-semibold text-caption text-ink-subtle">
@@ -191,24 +175,43 @@ export default function LearnScreen() {
 function ActiveCourseCard({
   course,
   session,
+  failed,
+  onRetry,
 }: {
   course: CourseSummary;
   session: DueCardsResponse | null;
+  /** This deck's session request failed. Without it the card claims "All caught up". */
+  failed: boolean;
+  onRetry: () => void;
 }) {
   const dueCount = session?.cards.length ?? 0;
   const reviewed = session?.reviewedCardCount ?? 0;
   const total = session?.totalCardCount ?? course.cardCount;
   const percent = total === 0 ? 0 : Math.round((reviewed / total) * 100);
   const limitReached = session?.reviewsRemainingToday === 0;
+  // "All caught up" reads as "this deck is over" without it. Spaced repetition is the whole
+  // product, so the day the cards return is information, not a detail.
+  const returnsIn = daysUntil(session?.nextDueDate ?? null);
+  // Nothing to do today, but the deck is nowhere near finished — today's intake of new
+  // cards is simply spent. Saying "All caught up" here would be a plain lie.
+  const pacedOut =
+    dueCount === 0 &&
+    !limitReached &&
+    (session?.unseenCardCount ?? 0) > 0 &&
+    session?.newCardsRemainingToday === 0;
 
-  // "All caught up" and "hit the daily cap" both mean zero cards to review, and telling
-  // them apart is the difference between reassurance and a reason to consider premium.
-  const buttonTitle =
-    dueCount > 0
+  // "All caught up", "hit the daily cap" and "this request failed" all arrive as zero cards.
+  // Telling them apart is the difference between reassurance, a reason to consider premium,
+  // and a deck that looks finished when it never loaded at all.
+  const buttonTitle = failed
+    ? "Try again"
+    : dueCount > 0
       ? `Review ${dueCount} card${dueCount === 1 ? "" : "s"}`
       : limitReached
         ? "Today's reviews are done"
-        : "All caught up";
+        : pacedOut
+          ? "Today's new cards are done"
+          : "All caught up";
 
   return (
     <Card>
@@ -238,12 +241,20 @@ function ActiveCourseCard({
           className="text-caption text-ink-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          {reviewed} of {total} cards · {dueCount} due today
+          {failed
+            ? "Couldn't load this deck."
+            : pacedOut
+              ? `${reviewed} of ${total} cards · ${session?.unseenCardCount} still to learn`
+              : dueCount === 0 && !limitReached && returnsIn !== null
+                ? `${reviewed} of ${total} cards · back ${formatReturn(returnsIn)}`
+                : `${reviewed} of ${total} cards · ${dueCount} due today`}
         </Text>
 
         <Button
-          disabled={dueCount === 0}
-          onPress={() => router.push(`/review/${course.id}`)}
+          disabled={!failed && dueCount === 0}
+          onPress={() =>
+            failed ? onRetry() : router.push(`/review/${course.id}`)
+          }
           title={buttonTitle}
           variant="primary"
         />

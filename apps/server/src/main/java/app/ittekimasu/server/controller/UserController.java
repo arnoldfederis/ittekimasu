@@ -1,13 +1,19 @@
 package app.ittekimasu.server.controller;
 
+import app.ittekimasu.server.dto.request.BulkRatingRequest;
 import app.ittekimasu.server.dto.request.UpdateRemindersRequest;
 import app.ittekimasu.server.dto.response.EntitlementResponse;
+import app.ittekimasu.server.dto.response.BulkCardsResponse;
+import app.ittekimasu.server.dto.response.SeenCardResponse;
+import app.ittekimasu.server.dto.response.StudyDayResponse;
 import app.ittekimasu.server.dto.response.UserResponse;
 import app.ittekimasu.server.security.FirebasePrincipal;
 import app.ittekimasu.server.service.EntitlementService;
 import app.ittekimasu.server.service.ReviewService;
 import app.ittekimasu.server.service.UserService;
 import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -16,12 +22,20 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/users")
 public class UserController {
 
+  /** Twenty weeks — as much history as fits across a phone at a legible square size. */
+  private static final int STUDY_GRID_DAYS = 140;
+
   private final UserService userService;
   private final EntitlementService entitlementService;
+  private final ReviewService reviewService;
 
-  public UserController(UserService userService, EntitlementService entitlementService) {
+  public UserController(
+      UserService userService,
+      EntitlementService entitlementService,
+      ReviewService reviewService) {
     this.userService = userService;
     this.entitlementService = entitlementService;
+    this.reviewService = reviewService;
   }
 
   @GetMapping("/me")
@@ -62,6 +76,75 @@ public class UserController {
   public EntitlementResponse entitlement(@AuthenticationPrincipal FirebasePrincipal principal) {
     return entitlementService.getEntitlement(
         userService.findOrCreate(principal).getId(), ReviewService.FREE_DAILY_REVIEW_LIMIT);
+  }
+
+  /**
+   * The last {@value #STUDY_GRID_DAYS} days the user studied, for the profile grid.
+   *
+   * <p>Only the days they DID study come back; the client knows the window and fills the
+   * gaps, so an empty grid costs one empty array rather than 120 zeroes.
+   */
+  @GetMapping("/me/study-days")
+  public List<StudyDayResponse> studyDays(@AuthenticationPrincipal FirebasePrincipal principal) {
+    return reviewService.listStudyDays(
+        userService.findOrCreate(principal).getId(), STUDY_GRID_DAYS);
+  }
+
+  /** Every card this user has answered, with where each one currently stands. */
+  @GetMapping("/me/cards")
+  public List<SeenCardResponse> seenCards(@AuthenticationPrincipal FirebasePrincipal principal) {
+    return reviewService.listSeenCards(userService.findOrCreate(principal).getId());
+  }
+
+  /**
+   * Forgets one card: it returns to the unseen pile and will be taught again.
+   *
+   * <p>Not the same as DELETE /reviews/{cardId}, which takes back a single answer. This
+   * throws the whole history of the card away, which is what "remove from my seen cards"
+   * has to mean if the card is ever to be learned properly again.
+   */
+  @DeleteMapping("/me/cards/{cardId}")
+  public ResponseEntity<Void> forgetCard(
+      @AuthenticationPrincipal FirebasePrincipal principal, @PathVariable UUID cardId) {
+    reviewService.forgetCard(userService.findOrCreate(principal).getId(), cardId);
+    return ResponseEntity.noContent().build();
+  }
+
+  /**
+   * Re-rates every seen card, optionally within one deck.
+   *
+   * <p>Maintenance, not study: it spends no daily allowance and moves no streak. See
+   * ReviewService.rateAllSeen for why.
+   */
+  @PatchMapping("/me/cards")
+  public BulkCardsResponse rateAllCards(
+      @AuthenticationPrincipal FirebasePrincipal principal,
+      @Valid @RequestBody BulkRatingRequest request) {
+    return new BulkCardsResponse(
+        reviewService.rateAllSeen(
+            userService.findOrCreate(principal).getId(), request.courseId(), request.rating()));
+  }
+
+  /** Forgets every seen card, optionally within one deck. */
+  @DeleteMapping("/me/cards")
+  public BulkCardsResponse forgetAllCards(
+      @AuthenticationPrincipal FirebasePrincipal principal,
+      @RequestParam(required = false) UUID courseId) {
+    return new BulkCardsResponse(
+        reviewService.forgetAllSeen(userService.findOrCreate(principal).getId(), courseId));
+  }
+
+  /**
+   * Starts learning over: every card unseen, streak zeroed, study grid cleared.
+   *
+   * <p>Separate from DELETE /users/me/cards, which is deck maintenance and leaves the record
+   * of days studied intact. Here, erasing that record is the point of the request.
+   */
+  @DeleteMapping("/me/progress")
+  public BulkCardsResponse resetProgress(
+      @AuthenticationPrincipal FirebasePrincipal principal) {
+    return new BulkCardsResponse(
+        reviewService.resetAllProgress(userService.findOrCreate(principal).getId()));
   }
 
   /** Account deletion, required by App Store review guideline 5.1.1(v). */

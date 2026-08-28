@@ -172,6 +172,8 @@ function RootNavigator() {
           name="checklist-setup"
           options={{ presentation: "modal" }}
         />
+        <Stack.Screen name="cards/index" />
+        <Stack.Screen name="cards/[courseId]" />
         <Stack.Screen name="settings" />
         <Stack.Screen name="reminder-time" />
         <Stack.Screen name="move-date" />

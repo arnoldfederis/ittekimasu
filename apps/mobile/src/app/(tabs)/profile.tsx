@@ -1,14 +1,16 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { router, useFocusEffect } from "expo-router";
 import { useCallback } from "react";
-import { ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ListRow } from "@/components/list-row";
 import { ScreenHeader } from "@/components/screen-header";
+import { StudyGrid, StudyGridLegend } from "@/components/study-grid";
 import { TAB_BAR_CLEARANCE } from "@/constants/theme";
 import { useAuth } from "@/lib/auth";
 import { useChecklist } from "@/lib/checklist";
+import { useIsOnline } from "@/lib/network";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
 import { usePurchases } from "@/lib/purchases";
 import {
@@ -16,6 +18,7 @@ import {
   dueQuery,
   meQuery,
   queryKeys,
+  studyDaysQuery,
   useInvalidateOnFocus,
 } from "@/lib/queries";
 
@@ -24,11 +27,18 @@ export default function ProfileScreen() {
   const { checklist } = useChecklist();
   const { entitlement, isPremium, refresh } = usePurchases();
   const { reminderHour } = useNotifications();
+  const online = useIsOnline();
+  // No template adopted means nothing to recalculate against.
+  const hasChecklist = Boolean(checklist?.templateId);
 
   // Same keys the learn tab uses, so switching tabs renders from cache instead of
   // re-fetching the identical three responses.
   const { data: me = null } = useQuery(meQuery());
   const { data: courses } = useQuery(coursesQuery());
+  const { data: studyDays = [] } = useQuery(studyDaysQuery());
+
+  const streak = me?.currentStreakDays ?? 0;
+  const longest = me?.longestStreakDays ?? 0;
 
   // "Cards learned" spans decks, and only the due endpoint knows how many of each the user
   // has actually seen. One request per unlocked deck is fine at two or three decks.
@@ -45,7 +55,12 @@ export default function ProfileScreen() {
       )
     : null;
 
-  useInvalidateOnFocus([queryKeys.me, queryKeys.courses, ["due"]]);
+  useInvalidateOnFocus([
+    queryKeys.me,
+    queryKeys.courses,
+    queryKeys.studyDays,
+    ["due"],
+  ]);
 
   // RevenueCat's own state, not a query — the SDK owns it.
   useFocusEffect(
@@ -94,6 +109,39 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
+        {/*
+          The habit, at the top, where the streak number used to sit in a row of three tiles.
+          The grid says what the number cannot — the good fortnight, the week off — and the
+          number still leads in the caption, because a grid takes a moment to read.
+        */}
+        <Card>
+          <View className="gap-3">
+            <View className="gap-1">
+              <CardTitle>
+                {streak === 0
+                  ? "No streak yet"
+                  : `${streak} day${streak === 1 ? "" : "s"} in a row`}
+              </CardTitle>
+              <CardCaption>
+                {streak === 0
+                  ? "Review a few cards to start one."
+                  : `Longest run so far: ${longest} day${longest === 1 ? "" : "s"}.`}
+              </CardCaption>
+            </View>
+
+            <ScrollView
+              horizontal
+              // Twenty weeks fits most phones, but not the smallest ones — scrolling beats
+              // squares too small to read.
+              showsHorizontalScrollIndicator={false}
+            >
+              <StudyGrid days={studyDays} />
+            </ScrollView>
+
+            <StudyGridLegend />
+          </View>
+        </Card>
+
         {premium ? (
           <Card tone="accent">
             <View className="gap-1">
@@ -111,7 +159,8 @@ export default function ProfileScreen() {
               <View className="gap-1">
                 <CardTitle>Free plan</CardTitle>
                 <CardCaption>
-                  {entitlement?.dailyReviewLimit ?? 20} cards a day · N5 only
+                  {entitlement?.dailyReviewLimit ?? 20} cards a day · Kana and
+                  N5
                 </CardCaption>
               </View>
               <Button
@@ -124,12 +173,10 @@ export default function ProfileScreen() {
         )}
 
         <View className="flex-row gap-3">
-          <StatTile
-            label="Day streak"
-            value={me === null ? "—" : String(me.currentStreakDays)}
-          />
+          {/* The one tile that leads somewhere: the number is a door, not a fact. */}
           <StatTile
             label="Cards learned"
+            onPress={() => router.push("/cards")}
             value={cardsLearned === null ? "—" : String(cardsLearned)}
           />
           <StatTile label="Checklist" value={`${checklistPercent}%`} />
@@ -144,10 +191,26 @@ export default function ProfileScreen() {
             title="Visa type"
             value={checklist?.visaType ?? "Not set"}
           />
+          {/*
+            Both of these screens exist only to write to the server, so offline they are a
+            dead end. Closing the door here beats opening a page whose every control is
+            greyed out.
+
+            Move date also needs a template: the screen rebuilds the checklist FROM one, so
+            with no visa route adopted its only button can never be pressed.
+          */}
           <ListRow
+            disabled={!online || !hasChecklist}
             icon="calendar"
             onPress={() => router.push("/move-date")}
             showChevron
+            subtitle={
+              hasChecklist
+                ? online
+                  ? undefined
+                  : "Needs a connection"
+                : "Build a checklist first"
+            }
             title="Move date"
             value={
               checklist?.targetMoveDate
@@ -156,9 +219,11 @@ export default function ProfileScreen() {
             }
           />
           <ListRow
+            disabled={!online}
             icon="bell"
             onPress={() => router.push("/reminder-time")}
             showChevron
+            subtitle={online ? undefined : "Needs a connection"}
             title="Reminder time"
             value={formatReminderHour(reminderHour)}
           />
@@ -174,10 +239,23 @@ export default function ProfileScreen() {
   );
 }
 
-/** One number, one label. Three across the row. */
-function StatTile({ label, value }: { label: string; value: string }) {
+/** One number, one label. Pressable when there is somewhere to go. */
+function StatTile({
+  label,
+  value,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  onPress?: () => void;
+}) {
+  const Container = onPress ? Pressable : View;
   return (
-    <View className="flex-1 items-center gap-1 rounded-card bg-surface px-2 py-4">
+    <Container
+      accessibilityRole={onPress ? "button" : undefined}
+      className={`flex-1 items-center gap-1 rounded-card bg-surface px-2 py-4 ${onPress ? "active:bg-surface-sunken" : ""}`}
+      onPress={onPress}
+    >
       <Text
         className="font-semibold text-ink text-title"
         style={{ fontVariant: ["tabular-nums"] }}
@@ -185,7 +263,7 @@ function StatTile({ label, value }: { label: string; value: string }) {
         {value}
       </Text>
       <Text className="text-center text-caption text-ink-muted">{label}</Text>
-    </View>
+    </Container>
   );
 }
 

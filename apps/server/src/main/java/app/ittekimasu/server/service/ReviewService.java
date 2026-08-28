@@ -4,6 +4,8 @@ import app.ittekimasu.server.dto.response.CardDueResponse;
 import app.ittekimasu.server.dto.response.DueCardsResponse;
 import app.ittekimasu.server.dto.response.IntervalPreviewResponse;
 import app.ittekimasu.server.dto.response.ReviewResultResponse;
+import app.ittekimasu.server.dto.response.SeenCardResponse;
+import app.ittekimasu.server.dto.response.StudyDayResponse;
 import app.ittekimasu.server.entity.Card;
 import app.ittekimasu.server.entity.Course;
 import app.ittekimasu.server.entity.ReviewRating;
@@ -15,16 +17,19 @@ import app.ittekimasu.server.repository.CardRepository;
 import app.ittekimasu.server.repository.CourseRepository;
 import app.ittekimasu.server.repository.UserCardProgressRepository;
 import app.ittekimasu.server.repository.UserRepository;
+import app.ittekimasu.server.repository.UserStudyDayRepository;
 import app.ittekimasu.server.service.SpacedRepetitionService.Schedule;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +45,18 @@ public class ReviewService {
   static final int PREMIUM_SESSION_SIZE = 50;
 
   /**
+   * How many cards a learner meets for the FIRST time in one day, across every deck.
+   *
+   * <p>Not a paywall — premium is bound by this too. It is pacing, and it exists for two
+   * reasons. A hundred unfamiliar characters in one sitting is how cramming works and
+   * cramming does not stick; and without it a deck can be exhausted in an afternoon, leaving
+   * the app with nothing to offer for the six days SM-2 then imposes.
+   *
+   * <p>Reviews are untouched: everything due still comes back the moment it is due.
+   */
+  static final int NEW_CARDS_PER_DAY = 10;
+
+  /**
    * One day boundary for the whole app rather than a per-user timezone. Everyone here is
    * either in Japan or moving there, and a per-user zone is a settings screen, not an MVP.
    */
@@ -49,6 +66,7 @@ public class ReviewService {
   private final CardRepository cardRepository;
   private final UserCardProgressRepository progressRepository;
   private final UserRepository userRepository;
+  private final UserStudyDayRepository studyDayRepository;
   private final SpacedRepetitionService scheduler;
   private final EntitlementService entitlementService;
 
@@ -57,12 +75,14 @@ public class ReviewService {
       CardRepository cardRepository,
       UserCardProgressRepository progressRepository,
       UserRepository userRepository,
+      UserStudyDayRepository studyDayRepository,
       SpacedRepetitionService scheduler,
       EntitlementService entitlementService) {
     this.courseRepository = courseRepository;
     this.cardRepository = cardRepository;
     this.progressRepository = progressRepository;
     this.userRepository = userRepository;
+    this.studyDayRepository = studyDayRepository;
     this.scheduler = scheduler;
     this.entitlementService = entitlementService;
   }
@@ -89,12 +109,26 @@ public class ReviewService {
     List<Card> due =
         sessionSize == 0
             ? List.of()
-            : cardRepository.findDueCards(userId, courseId, today, PageRequest.of(0, sessionSize));
+            : cardRepository.findDueSeenCards(
+                userId, courseId, today, PageRequest.of(0, sessionSize));
 
-    Map<UUID, UserCardProgress> progressByCard = progressFor(userId, due);
+    /*
+     * New cards fill whatever the due backlog left, up to the day's intake. Due FIRST and
+     * unconditionally: material already half-learned is worth more than material never seen,
+     * and burying a backlog under new words is how a deck becomes unmanageable.
+     */
+    int newRemaining = newCardsRemainingToday(userId, today);
+    int newSlots = Math.min(sessionSize - due.size(), newRemaining);
+    List<Card> unseen =
+        newSlots <= 0
+            ? List.of()
+            : cardRepository.findUnseenInCourse(userId, courseId, PageRequest.of(0, newSlots));
+
+    List<Card> session = Stream.concat(due.stream(), unseen.stream()).toList();
+    Map<UUID, UserCardProgress> progressByCard = progressFor(userId, session);
 
     List<CardDueResponse> cards =
-        due.stream()
+        session.stream()
             .map(card -> toDueResponse(card, progressByCard.get(card.getId())))
             .toList();
 
@@ -107,7 +141,10 @@ public class ReviewService {
         reviewedToday,
         premium ? null : FREE_DAILY_REVIEW_LIMIT,
         remaining,
-        managedUser(userId).getCurrentStreakDays());
+        managedUser(userId).getCurrentStreakDays(),
+        progressRepository.findEarliestNextReviewDateForCourse(userId, courseId),
+        newRemaining,
+        cardRepository.countUnseenInCourse(userId, courseId));
   }
 
   @Transactional
@@ -127,6 +164,9 @@ public class ReviewService {
     UserCardProgress progress =
         progressRepository.findByUserIdAndCardId(userId, cardId).orElse(null);
 
+    // Read before the save below reschedules this card and hides whether it was overdue.
+    boolean gapWasEmpty = studyGapWasEmpty(userId, user.getLastStudiedOn(), today, premium);
+
     // Re-rating a card already answered today costs nothing extra — the cap counts distinct
     // cards, so a learner correcting a mis-tap is not punished for it.
     boolean alreadyCountedToday =
@@ -145,7 +185,16 @@ public class ReviewService {
       progress = new UserCardProgress();
       progress.setUser(user);
       progress.setCard(card);
+    } else {
+      // Only for a card that already had state. A first review leaves the snapshot null,
+      // which is how undo knows to delete the row rather than restore it.
+      progress.setPreviousEaseFactor(progress.getEaseFactor());
+      progress.setPreviousIntervalDays(progress.getIntervalDays());
+      progress.setPreviousStreakCount(progress.getStreakCount());
+      progress.setPreviousNextReviewDate(progress.getNextReviewDate());
+      progress.setPreviousLastReviewedAt(progress.getLastReviewedAt());
     }
+    progress.setLastRating(rating);
     progress.setEaseFactor(next.easeFactor());
     progress.setIntervalDays(next.intervalDays());
     progress.setStreakCount(next.streakCount());
@@ -153,7 +202,9 @@ public class ReviewService {
     progress.setLastReviewedAt(now);
     progressRepository.save(progress);
 
-    recordStudyDay(user, today);
+    recordStudyDay(user, today, gapWasEmpty);
+    // Every review, not just the first of the day: the count is what shades the grid.
+    studyDayRepository.recordReview(userId, today);
 
     int reviewedAfterSave = reviewedToday(userId, today);
 
@@ -172,24 +223,261 @@ public class ReviewService {
   }
 
   /**
-   * Extends the day streak at most once per day. A gap of two or more days restarts at 1
-   * rather than zeroing — the learner did study today, and the streak card should say so.
+   * The streak after studying on {@code today}. Pure and clock-free so the awkward cases are
+   * testable without a database.
+   *
+   * <p>{@code gapWasEmpty} is what stops the algorithm punishing its own success: a first
+   * non-AGAIN answer schedules a card six days out, so a learner who clears a deck is given
+   * nothing to do for most of a week and used to come back to a streak of 1. A day with
+   * nothing due is not a day they skipped.
    */
-  private void recordStudyDay(User user, LocalDate today) {
+  static int nextStreak(int current, LocalDate last, LocalDate today, boolean gapWasEmpty) {
+    if (last == null) {
+      return 1;
+    }
+    boolean unbroken = today.minusDays(1).equals(last) || gapWasEmpty;
+    // Restarts at 1, never 0 — the learner did study today and the card should say so.
+    return unbroken ? current + 1 : 1;
+  }
+
+  /**
+   * Whether the days between the last study day and today held nothing to review.
+   *
+   * <p>Read BEFORE the review is saved. Saving reschedules the card being answered, which
+   * erases the evidence that it was overdue — and an overdue card is precisely a day the
+   * learner did skip.
+   */
+  private boolean studyGapWasEmpty(UUID userId, LocalDate last, LocalDate today, boolean premium) {
+    // No gap to judge: yesterday, today, or a streak that has not started.
+    if (last == null || !last.isBefore(today.minusDays(1))) {
+      return true;
+    }
+
+    Collection<Boolean> accessible = premium ? List.of(false, true) : List.of(false);
+
+    // An unseen card was available every one of those days.
+    if (cardRepository.countUnseen(userId, accessible) > 0) {
+      return false;
+    }
+
+    LocalDate earliestDue = progressRepository.findEarliestNextReviewDate(userId, accessible);
+    // Due yesterday or earlier means there was a day with work on it. Due today is fine —
+    // that is the card being answered right now.
+    return earliestDue == null || !earliestDue.isBefore(today);
+  }
+
+  /** Extends the day streak at most once per day. */
+  private void recordStudyDay(User user, LocalDate today, boolean gapWasEmpty) {
     LocalDate last = user.getLastStudiedOn();
     if (today.equals(last)) {
       return;
     }
 
-    user.setCurrentStreakDays(today.minusDays(1).equals(last) ? user.getCurrentStreakDays() + 1 : 1);
+    user.setCurrentStreakDays(
+        nextStreak(user.getCurrentStreakDays(), last, today, gapWasEmpty));
     user.setLastStudiedOn(today);
     user.setLongestStreakDays(Math.max(user.getLongestStreakDays(), user.getCurrentStreakDays()));
+  }
+
+  /**
+   * Takes back the most recent answer for one card.
+   *
+   * <p>Restores the schedule the card had before it, or deletes the progress row entirely
+   * when the answer being undone was the card's first — a card reviewed once and undone must
+   * go back to being unseen, not to a "reviewed" row with invented numbers.
+   *
+   * <p>The day streak and the study-day count are deliberately left alone. The learner did
+   * study today; a mis-tap is not a reason to take that away, and the alternative is undoing
+   * a streak they may have earned with other cards in the same session.
+   */
+  @Transactional
+  public void undoReview(UUID userId, UUID cardId) {
+    UserCardProgress progress =
+        progressRepository
+            .findByUserIdAndCardId(userId, cardId)
+            .orElseThrow(() -> new ResourceNotFoundException("Review", cardId));
+
+    if (progress.getPreviousLastReviewedAt() == null) {
+      // First-ever review of this card: undoing it means the card was never seen.
+      progressRepository.delete(progress);
+      return;
+    }
+
+    progress.setEaseFactor(progress.getPreviousEaseFactor());
+    progress.setIntervalDays(progress.getPreviousIntervalDays());
+    progress.setStreakCount(progress.getPreviousStreakCount());
+    progress.setNextReviewDate(progress.getPreviousNextReviewDate());
+    progress.setLastReviewedAt(progress.getPreviousLastReviewedAt());
+
+    // One step only: the snapshot is spent, and a second undo must not walk further back
+    // into state this row no longer has.
+    progress.setLastRating(null);
+    progress.setPreviousEaseFactor(null);
+    progress.setPreviousIntervalDays(null);
+    progress.setPreviousStreakCount(null);
+    progress.setPreviousNextReviewDate(null);
+    progress.setPreviousLastReviewedAt(null);
+  }
+
+  /** Every card the learner has answered, for the seen-cards browser. */
+  @Transactional(readOnly = true)
+  public List<SeenCardResponse> listSeenCards(UUID userId) {
+    return progressRepository.findAllSeenWithCard(userId).stream()
+        .map(progress -> SeenCardResponse.from(progress, intervalsFor(Schedule.of(progress))))
+        .toList();
+  }
+
+  /**
+   * Re-rates every seen card, optionally within one deck.
+   *
+   * <p>Deliberately NOT counted as reviews: the daily cap is untouched, the streak does not
+   * move, and no study day is recorded. Marking a hundred cards at once is deck maintenance —
+   * "I have forgotten this whole deck, start it over" — and treating it as a hundred reviews
+   * would spend a free learner's allowance for a week and inflate the grid with a day of
+   * study that never happened.
+   *
+   * <p>Each card still keeps its own undo snapshot, so one card can be put back afterwards.
+   *
+   * @return how many cards were rescheduled.
+   */
+  @Transactional
+  public int rateAllSeen(UUID userId, UUID courseId, ReviewRating rating) {
+    LocalDate today = LocalDate.now(APP_ZONE);
+    Instant now = Instant.now();
+
+    List<UserCardProgress> rows =
+        progressRepository.findAllSeenWithCard(userId).stream()
+            .filter(row -> courseId == null || row.getCard().getCourse().getId().equals(courseId))
+            .toList();
+
+    for (UserCardProgress progress : rows) {
+      Schedule next = scheduler.processReview(Schedule.of(progress), rating);
+
+      progress.setPreviousEaseFactor(progress.getEaseFactor());
+      progress.setPreviousIntervalDays(progress.getIntervalDays());
+      progress.setPreviousStreakCount(progress.getStreakCount());
+      progress.setPreviousNextReviewDate(progress.getNextReviewDate());
+      progress.setPreviousLastReviewedAt(progress.getLastReviewedAt());
+
+      progress.setLastRating(rating);
+      progress.setEaseFactor(next.easeFactor());
+      progress.setIntervalDays(next.intervalDays());
+      progress.setStreakCount(next.streakCount());
+      progress.setNextReviewDate(today.plusDays(next.intervalDays()));
+      progress.setLastReviewedAt(now);
+    }
+
+    return rows.size();
+  }
+
+  /**
+   * Forgets every seen card, optionally within one deck: the whole lot goes back to unseen.
+   *
+   * @return how many cards were forgotten.
+   */
+  @Transactional
+  public int forgetAllSeen(UUID userId, UUID courseId) {
+    List<UserCardProgress> rows =
+        progressRepository.findAllSeenWithCard(userId).stream()
+            .filter(row -> courseId == null || row.getCard().getCourse().getId().equals(courseId))
+            .toList();
+
+    progressRepository.deleteAll(rows);
+    return rows.size();
+  }
+
+  /**
+   * Forgets a card completely: the progress row goes, and the card returns to the unseen
+   * pile to be taught again from scratch.
+   *
+   * <p>Distinct from undo, which rewinds ONE answer. This is "I never learned this", and it
+   * is the only honest way to fix a card marked Easy months ago and long since forgotten.
+   */
+  @Transactional
+  public void forgetCard(UUID userId, UUID cardId) {
+    progressRepository
+        .findByUserIdAndCardId(userId, cardId)
+        .ifPresent(progressRepository::delete);
+  }
+
+  /**
+   * Starts the learner over completely: every card unseen, the streak back to zero, the
+   * study grid empty.
+   *
+   * <p>The deliberate opposite of forgetting one deck's cards, which leaves the streak and
+   * the grid alone because those record days the learner actually turned up and deleting a
+   * deck's scheduling does not un-happen them. This is the action where erasing that history
+   * IS the request, so it goes too — anything less would leave a profile claiming a
+   * twelve-day habit next to zero cards learned.
+   *
+   * @return how many cards were forgotten.
+   */
+  @Transactional
+  public int resetAllProgress(UUID userId) {
+    User user = managedUser(userId);
+    int affected = progressRepository.findAllSeenWithCard(userId).size();
+
+    progressRepository.deleteAllByUserId(userId);
+    studyDayRepository.deleteAllByUserId(userId);
+
+    user.setCurrentStreakDays(0);
+    user.setLongestStreakDays(0);
+    user.setLastStudiedOn(null);
+
+    return affected;
+  }
+
+  /** The study grid: the days this user reviewed something, oldest first. */
+  @Transactional(readOnly = true)
+  public List<StudyDayResponse> listStudyDays(UUID userId, int days) {
+    LocalDate from = LocalDate.now(APP_ZONE).minusDays(days - 1L);
+    return studyDayRepository
+        .findAllByUserIdAndStudiedOnGreaterThanEqualOrderByStudiedOnAsc(userId, from)
+        .stream()
+        .map(StudyDayResponse::from)
+        .toList();
+  }
+
+  /**
+   * Whether the user has anything to review right now, in any deck they can open.
+   *
+   * <p>Used by the daily reminder: nudging someone whose every card is scheduled days ahead
+   * teaches them the notification is noise, which costs far more than the one push gains.
+   */
+  @Transactional(readOnly = true)
+  public boolean hasWorkAvailable(UUID userId) {
+    boolean premium = entitlementService.isPremium(userId);
+    Collection<Boolean> accessible = premium ? List.of(false, true) : List.of(false);
+    LocalDate today = LocalDate.now(APP_ZONE);
+
+    // Unseen cards are only work if the day's intake still has room. Otherwise the app would
+    // nudge someone towards cards it has already decided not to hand over until tomorrow.
+    if (newCardsRemainingToday(userId, today) > 0
+        && cardRepository.countUnseen(userId, accessible) > 0) {
+      return true;
+    }
+
+    LocalDate earliestDue = progressRepository.findEarliestNextReviewDate(userId, accessible);
+    return earliestDue != null && !earliestDue.isAfter(today);
   }
 
   /** Distinct cards touched since the start of the app-timezone day. */
   private int reviewedToday(UUID userId, LocalDate today) {
     return progressRepository.countByUserIdAndLastReviewedAtGreaterThanEqual(
         userId, startOfDay(today));
+  }
+
+  /**
+   * How many first-time cards are left in today's intake, across every deck.
+   *
+   * <p>A progress row is created the first time a card is answered, so counting rows created
+   * today counts exactly the cards introduced today — no extra column, and nothing to keep
+   * in step.
+   */
+  private int newCardsRemainingToday(UUID userId, LocalDate today) {
+    int introduced =
+        progressRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, startOfDay(today));
+    return Math.max(0, NEW_CARDS_PER_DAY - introduced);
   }
 
   /** Null means unlimited — premium has no daily cap to count down from. */
@@ -220,18 +508,22 @@ public class ReviewService {
   }
 
   private CardDueResponse toDueResponse(Card card, UserCardProgress progress) {
-    Schedule current = Schedule.of(progress);
     return new CardDueResponse(
         card.getId(),
         card.getFrontText(),
         card.getBackText(),
         card.getCardType().name(),
         progress != null,
-        new IntervalPreviewResponse(
-            scheduler.projectInterval(current, ReviewRating.AGAIN),
-            scheduler.projectInterval(current, ReviewRating.HARD),
-            scheduler.projectInterval(current, ReviewRating.GOOD),
-            scheduler.projectInterval(current, ReviewRating.EASY)));
+        intervalsFor(Schedule.of(progress)));
+  }
+
+  /** What each button would schedule from a given state. Computed here and only here. */
+  private IntervalPreviewResponse intervalsFor(Schedule current) {
+    return new IntervalPreviewResponse(
+        scheduler.projectInterval(current, ReviewRating.AGAIN),
+        scheduler.projectInterval(current, ReviewRating.HARD),
+        scheduler.projectInterval(current, ReviewRating.GOOD),
+        scheduler.projectInterval(current, ReviewRating.EASY));
   }
 
   /**

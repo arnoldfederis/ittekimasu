@@ -5,13 +5,17 @@ import { Alert, ScrollView, Text } from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { DatePicker } from "@/components/date-picker";
+import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { api } from "@/lib/api";
 import { useChecklist } from "@/lib/checklist";
 import { formatMoveDate, parseLocalIsoDate, toLocalIsoDate } from "@/lib/dates";
+import { useIsOnline } from "@/lib/network";
 import { toast } from "@/lib/toast";
 
 export default function MoveDateScreen() {
   const { checklist, replace } = useChecklist();
+  const online = useIsOnline();
+  const bannerClearance = useOfflineBannerClearance();
 
   const [date, setDate] = useState<Date | null>(
     checklist?.targetMoveDate
@@ -78,7 +82,11 @@ export default function MoveDateScreen() {
 
       <ScrollView
         className="flex-1 bg-canvas"
-        contentContainerStyle={{ padding: 24, gap: 24 }}
+        contentContainerStyle={{
+          padding: 24,
+          gap: 24,
+          paddingBottom: 24 + bannerClearance,
+        }}
         contentInsetAdjustmentBehavior="automatic"
       >
         <Text className="text-body text-ink-muted">
@@ -99,8 +107,17 @@ export default function MoveDateScreen() {
           </Card>
         ) : null}
 
+        {online ? null : (
+          <Card tone="sunken">
+            <Text className="text-caption text-ink-muted">
+              Rebuilding the checklist needs a connection — every deadline is
+              recalculated on the server.
+            </Text>
+          </Card>
+        )}
+
         <Button
-          disabled={!date || !templateId}
+          disabled={!date || !templateId || !online}
           loading={rebuild.isPending}
           onPress={confirm}
           size="large"

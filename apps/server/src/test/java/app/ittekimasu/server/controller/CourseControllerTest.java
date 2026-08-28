@@ -21,6 +21,7 @@ import app.ittekimasu.server.service.ReviewService;
 import app.ittekimasu.server.service.UserService;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseToken;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -112,7 +113,10 @@ class CourseControllerTest {
                 1,
                 20,
                 19,
-                3));
+                3,
+                LocalDate.of(2026, 9, 3),
+                7,
+                88));
 
     mockMvc
         .perform(

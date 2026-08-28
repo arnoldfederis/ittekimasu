@@ -1,5 +1,6 @@
 package app.ittekimasu.server.dto.response;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,4 +24,19 @@ public record DueCardsResponse(
     /** Null for premium: unlimited. A sentinel would eventually render as a real number. */
     Integer dailyLimit,
     Integer reviewsRemainingToday,
-    int studyStreakDays) {}
+    int studyStreakDays,
+    /**
+     * When the soonest scheduled card in THIS deck comes back, or null if the learner has
+     * reviewed nothing here yet.
+     *
+     * <p>The answer to the question an empty session provokes: "why can I not study this?"
+     * Without a date, "All caught up" reads as the deck being over.
+     */
+    LocalDate nextDueDate,
+    /**
+     * First-time cards left in today's intake, across every deck. Zero with unseen cards
+     * still in the deck means "paced", not "finished" — different copy entirely.
+     */
+    int newCardsRemainingToday,
+    /** Cards in THIS deck never answered. With the field above, tells "paced" from "done". */
+    int unseenCardCount) {}

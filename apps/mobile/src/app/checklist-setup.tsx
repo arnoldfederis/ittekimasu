@@ -19,7 +19,15 @@ export default function ChecklistSetupScreen() {
       <Stack.Screen
         options={{ headerShown: true, title: "Build your checklist" }}
       />
-      <View className="flex-1 bg-canvas">
+      <View className="flex-1 bg-canvas pt-3">
+        {/*
+          Our own grabber. The iOS one belongs to a formSheet; this is a page-sheet modal,
+          so without a handle there is nothing on screen saying it can be pulled down.
+        */}
+        <View className="items-center pb-2">
+          <View className="h-1 w-9 rounded-pill bg-line" />
+        </View>
+
         <ChecklistWizard onCompleted={() => router.back()} />
       </View>
     </OnboardingProvider>

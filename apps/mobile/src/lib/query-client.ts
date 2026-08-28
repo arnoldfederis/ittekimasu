@@ -104,13 +104,26 @@ export function createQueryClient(): QueryClient {
       rating: ReviewRating;
     }) => api.submitReview(cardId, rating),
 
-    // Queue instead of fail. This is the whole offline-study feature: the rating is kept
-    // and replayed when there is a connection again.
-    networkMode: "offlineFirst",
+    /*
+     * "online" — the default, and stated here because it is load-bearing.
+     *
+     * NOT "offlineFirst": that fires the mutationFn once regardless and only pauses the
+     * RETRIES, so with `retry: false` below there is nothing left to pause. Offline it ran,
+     * Firebase's token refresh failed with "The internet connection appears to be offline",
+     * and the rating was lost instead of queued. "online" pauses before any request, which
+     * is what makes a plane session survive.
+     */
+    networkMode: "online",
 
     onSuccess: () => {
       // The streak, the due counts and the deck progress all moved server-side.
-      for (const queryKey of [["due"], ["courses"], ["me"]]) {
+      for (const queryKey of [
+        ["due"],
+        ["courses"],
+        ["me"],
+        ["seen-cards"],
+        ["study-days"],
+      ]) {
         client.invalidateQueries({ queryKey });
       }
     },

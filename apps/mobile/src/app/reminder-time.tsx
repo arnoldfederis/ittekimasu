@@ -11,7 +11,9 @@ import {
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
+import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
+import { useIsOnline } from "@/lib/network";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
 
 /**
@@ -38,6 +40,10 @@ function shortHour(hour: number): string {
 export default function ReminderTimeScreen() {
   const colors = useThemeColors();
   const { reminderHour, setReminderHour, hasPermission } = useNotifications();
+  // Saving is a PATCH. Offline the mutation pauses rather than fails, which would leave the
+  // switch flipped and the hour looking chosen while the server knew nothing about it.
+  const online = useIsOnline();
+  const bannerClearance = useOfflineBannerClearance();
 
   // Remembered so toggling off and back on returns to the hour they picked, rather than
   // silently resetting to the default.
@@ -64,7 +70,11 @@ export default function ReminderTimeScreen() {
 
       <ScrollView
         className="flex-1 bg-canvas"
-        contentContainerStyle={{ paddingBottom: 32, paddingTop: 16, gap: 16 }}
+        contentContainerStyle={{
+          paddingBottom: 32 + bannerClearance,
+          paddingTop: 16,
+          gap: 16,
+        }}
         contentInsetAdjustmentBehavior="automatic"
       >
         <View className="mx-4 overflow-hidden rounded-card bg-surface">
@@ -72,12 +82,15 @@ export default function ReminderTimeScreen() {
             <View className="flex-1 gap-0.5">
               <Text className="text-body text-ink">Daily reminder</Text>
               <Text className="text-caption text-ink-muted">
-                {enabled
-                  ? `Every day at ${formatReminderHour(reminderHour)}`
-                  : "A short nudge to keep your streak going"}
+                {!online
+                  ? "Reconnect to change your reminder"
+                  : enabled
+                    ? `Every day at ${formatReminderHour(reminderHour)}`
+                    : "A short nudge to keep your streak going"}
               </Text>
             </View>
             <Switch
+              disabled={!online}
               onValueChange={toggle}
               thumbColor={colors.surface}
               trackColor={{ false: colors.line, true: colors.primary }}
@@ -133,6 +146,7 @@ export default function ReminderTimeScreen() {
                         ? "bg-primary"
                         : "bg-surface-sunken active:opacity-70"
                     }`}
+                    disabled={!online}
                     key={hour}
                     onPress={() => choose(hour)}
                     style={{ width: "22.5%", borderCurve: "continuous" }}

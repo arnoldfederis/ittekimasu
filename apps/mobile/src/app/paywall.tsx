@@ -17,7 +17,9 @@ import { isPurchaseCancelled, usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
 const BENEFITS = [
-  "The full N5 → N4 → N3 path",
+  // Kana and N5 are FREE, so neither belongs here — a benefit list that promises what the
+  // reader already has is the fastest way to lose their trust in the rest of it.
+  "N4 and N3, once kana and N5 are behind you",
   "Unlimited daily reviews",
   "Extra decks, like ward-office vocabulary",
   "Priority updates as the app grows",

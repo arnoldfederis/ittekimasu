@@ -12,8 +12,10 @@ import {
 } from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
+import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
 import {
+  applyAudioMode,
   getSelectedVoice,
   japaneseVoices,
   playsInSilentMode,
@@ -30,11 +32,23 @@ export default function VoiceScreen() {
   const [voices, setVoices] = useState<Speech.Voice[] | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [silentMode, setSilentMode] = useState(false);
+  // Without this the last voice in the list sits under the offline banner.
+  const bannerClearance = useOfflineBannerClearance();
 
   useEffect(() => {
     japaneseVoices().then(setVoices);
     getSelectedVoice().then(setSelected);
     playsInSilentMode().then(setSilentMode);
+    /*
+     * Push the stored preference into the audio session on the way in.
+     *
+     * AVAudioSession is process-wide and only ever written by setPlaysInSilentMode, so on a
+     * fresh launch this screen inherited whatever category iOS defaulted to. With the
+     * preference already ON, previews were still silenced by the ring switch until the
+     * toggle was flipped off and on again — on the one screen whose whole job is auditioning
+     * voices.
+     */
+    applyAudioMode();
   }, []);
 
   async function toggleSilentMode(enabled: boolean) {
@@ -55,12 +69,28 @@ export default function VoiceScreen() {
 
       <ScrollView
         className="flex-1 bg-canvas"
-        contentContainerStyle={{ padding: 24, gap: 16 }}
+        contentContainerStyle={{
+          padding: 24,
+          gap: 16,
+          paddingBottom: 24 + bannerClearance,
+        }}
         contentInsetAdjustmentBehavior="automatic"
       >
         <Text className="text-body text-ink-muted">
           Used when a card&apos;s reading is spoken. Tap one to hear it.
         </Text>
+
+        {/*
+          Says the quiet part out loud, on the one screen where hearing nothing looks like a
+          broken app rather than a working mute switch. Only while the preference is off —
+          once it is on there is nothing left to explain.
+        */}
+        {silentMode ? null : (
+          <Text className="text-caption text-ink-muted">
+            Hearing nothing? Your phone&apos;s ring/silent switch mutes
+            previews. Turn on &quot;Play even when silent&quot; below.
+          </Text>
+        )}
 
         {/*
           The single most common reason audio "doesn't work" — paired with the switch that
