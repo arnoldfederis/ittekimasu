@@ -5,7 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useMemo, useState } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Toaster } from "sonner-native";
-import { OfflineBanner } from "@/components/offline-banner";
+import { OfflineBanner, useToastOffset } from "@/components/offline-banner";
 import { radius, useIsDark, useThemeColors } from "@/constants/theme";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { ChecklistProvider } from "@/lib/checklist";
@@ -71,6 +71,7 @@ export default function RootLayout() {
 function Chrome() {
   const colors = useThemeColors();
   const isDark = useIsDark();
+  const toastOffset = useToastOffset();
 
   const navigationTheme = useMemo(() => {
     const base = isDark ? DarkTheme : DefaultTheme;
@@ -95,10 +96,16 @@ function Chrome() {
       <OfflineBanner />
       <Toaster
         duration={4000}
-        // Clears the Dynamic Island / notch. At a small offset the toast renders
-        // underneath the status bar and the title is unreadable.
-        offset={64}
-        position="top-center"
+        /*
+         * Bottom, not top. A top toast sits over the navigation bar and covers the back
+         * button and the deck's ellipsis menu — the confirmation hiding the control that
+         * produced it. The offset clears the tab bar and the offline banner; it is a hook,
+         * not a constant, because both of those come and go.
+         */
+        offset={toastOffset}
+        position="bottom-center"
+        // 'up' would drag a bottom toast into the content it is sitting under.
+        swipeToDismissDirection="left"
         theme={isDark ? "dark" : "light"}
         toastOptions={{
           style: {

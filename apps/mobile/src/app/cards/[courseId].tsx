@@ -123,7 +123,13 @@ export default function DeckCardsScreen() {
     }: {
       cardId: string;
       rating: ReviewRating;
-    }) => api.submitReview(cardId, rating),
+      /*
+       * A CORRECTION, not a review. submitReview runs SM-2 against the card's CURRENT state,
+       * so three taps of Easy walked one card 6 → 21 → 76 → 289 days. correctCardRating
+       * measures from where the card stood before its last answer, spends no daily
+       * allowance and moves no streak.
+       */
+    }) => api.correctCardRating(cardId, rating),
     onSuccess: (result) => {
       setExpanded(null);
       refreshLists();
@@ -248,8 +254,9 @@ export default function DeckCardsScreen() {
             entering={FadeIn.duration(140)}
           >
             <Text className="text-caption text-ink-muted">
-              Each answer reschedules from today. The multiplier applies to
-              where this card already is, which is why Easy can be weeks.
+              Changes the answer you gave and reschedules from today. It does
+              not use a daily review, and pressing the same one twice changes
+              nothing further.
             </Text>
 
             <View className="flex-row gap-2">
@@ -321,12 +328,23 @@ export default function DeckCardsScreen() {
                     id: entry.rating,
                     title: `Set all to ${entry.label}`,
                     image: entry.symbol,
+                    /*
+                     * imageColor is NOT optional under the New Architecture, whatever the
+                     * types say. Fabric always sends the prop, and an omitted one arrives as
+                     * 0 — which the native side reads as #00000000 and tints the symbol
+                     * fully transparent. The icons were rendering; they just could not be
+                     * seen. See MenuView.mm and RCTMenuItem.swift in the library.
+                     */
+                    imageColor: colors.ink,
                     attributes: { disabled: deckActionsDisabled },
                   })),
                   {
                     id: "FORGET_ALL",
                     title: "Remove all seen cards",
                     image: "trash",
+                    // UIKit's own destructive red, to match the title it sits beside. The
+                    // app's palette has no red by design; this menu is the platform's.
+                    imageColor: "#FF3B30",
                     attributes: {
                       destructive: true,
                       disabled: deckActionsDisabled,
@@ -347,7 +365,6 @@ export default function DeckCardsScreen() {
                   <Image
                     source="sf:ellipsis"
                     style={{ width: 18, height: 18 }}
-                    tintColor={colors.primary}
                   />
                 </View>
               </MenuView>

@@ -1,15 +1,15 @@
 import { useMutationState } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { usePathname } from "expo-router";
+import type { ReactNode } from "react";
 import { useEffect } from "react";
-import { Text, View } from "react-native";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import Animated, {
-  FadeInDown,
-  FadeOutDown,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { FullWindowOverlay } from "react-native-screens";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useThemeColors } from "@/constants/theme";
 import { useIsOnline } from "@/lib/network";
@@ -47,6 +47,50 @@ export function useOfflineBannerClearance(): number {
 }
 
 /**
+ * Where a toast sits: above the tab bar, and above the offline banner when that is up.
+ *
+ * Bottom rather than top, because at the top a toast covers the navigation bar — the back
+ * button and the deck's own ellipsis menu — so the confirmation hid the control that had
+ * just been used. Shares this file's geometry with the banner so the two cannot drift.
+ */
+export function useToastOffset(): number {
+  const insets = useSafeAreaInsets();
+  const online = useIsOnline();
+  const pathname = usePathname();
+
+  return (
+    bannerBottom(TAB_ROUTES.has(pathname), insets.bottom) +
+    (online ? 0 : BANNER_HEIGHT)
+  );
+}
+
+/**
+ * Puts the banner in a window-level overlay on iOS.
+ *
+ * `review`, `paywall` and `checklist-setup` are native modals, which UIKit presents in their
+ * own view controller ABOVE the root view — where this banner is mounted. Without the overlay
+ * the banner rendered perfectly and was simply behind them, so the one screen most likely to
+ * be open on a plane was the one screen that never said you were offline.
+ *
+ * Same mechanism sonner-native uses for toasts, which is why those already appeared over a
+ * modal and this did not.
+ */
+function BannerHost({ children }: { children: ReactNode }) {
+  if (Platform.OS !== "ios") return <>{children}</>;
+
+  return (
+    <FullWindowOverlay>
+      {/* The overlay is an empty window-sized view: the absolutely positioned banner inside
+          needs something filling it to anchor to. box-none so the rest of the screen stays
+          tappable through it. */}
+      <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        {children}
+      </View>
+    </FullWindowOverlay>
+  );
+}
+
+/**
  * Says "you are offline" once, at the bottom, instead of letting every screen discover it
  * separately through a failed request.
  *
@@ -75,7 +119,22 @@ export function OfflineBanner() {
     bottom.value = withTiming(target, { duration: 280 });
   }, [bottom, target]);
 
-  const offset = useAnimatedStyle(() => ({ bottom: bottom.value }));
+  /*
+   * Animated by hand rather than with `entering`/`exiting`. Reanimated's layout animations
+   * do not run inside a FullWindowOverlay, which left the banner mounted at opacity 0 —
+   * present, correct, and invisible. A shared value works in any host view.
+   */
+  const appear = useSharedValue(0);
+
+  useEffect(() => {
+    appear.value = withTiming(online ? 0 : 1, { duration: 220 });
+  }, [appear, online]);
+
+  const offset = useAnimatedStyle(() => ({
+    bottom: bottom.value,
+    opacity: appear.value,
+    transform: [{ translateY: (1 - appear.value) * 12 }],
+  }));
 
   // Ratings given with no connection: held by React Query and replayed on reconnect.
   const queued = useMutationState({
@@ -86,32 +145,32 @@ export function OfflineBanner() {
   if (online) return null;
 
   return (
-    <Animated.View
-      className="absolute right-0 left-0 px-4"
-      entering={FadeInDown}
-      exiting={FadeOutDown}
-      pointerEvents="none"
-      // Above the tab bar, not over it. Sitting on top of the tabs hid them behind a
-      // message about being offline, which is the one time you most want to navigate.
-      style={offset}
-    >
-      <View className="flex-row items-center gap-3 rounded-card border border-accent bg-accent-tint px-4 py-3">
-        <Image
-          source="sf:wifi.slash"
-          style={{ width: 18, height: 18 }}
-          tintColor={colors.accent}
-        />
-        <View className="flex-1 gap-0.5">
-          <Text className="font-semibold text-callout text-ink">
-            You're offline
-          </Text>
-          <Text className="text-caption text-ink-muted">
-            {queued > 0
-              ? `Carry on — ${queued} ${queued === 1 ? "answer syncs" : "answers sync"} when you're back.`
-              : "Showing what was saved on this device."}
-          </Text>
+    <BannerHost>
+      <Animated.View
+        className="absolute right-0 left-0 px-4"
+        pointerEvents="none"
+        // Above the tab bar, not over it. Sitting on top of the tabs hid them behind a
+        // message about being offline, which is the one time you most want to navigate.
+        style={offset}
+      >
+        <View className="flex-row items-center gap-3 rounded-card border border-accent bg-accent-tint px-4 py-3">
+          <Image
+            source="sf:wifi.slash"
+            style={{ width: 18, height: 18 }}
+            tintColor={colors.accent}
+          />
+          <View className="flex-1 gap-0.5">
+            <Text className="font-semibold text-callout text-ink">
+              You&apos;re offline
+            </Text>
+            <Text className="text-caption text-ink-muted">
+              {queued > 0
+                ? `Carry on — ${queued} ${queued === 1 ? "answer syncs" : "answers sync"} when you're back.`
+                : "Showing what was saved on this device."}
+            </Text>
+          </View>
         </View>
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </BannerHost>
   );
 }

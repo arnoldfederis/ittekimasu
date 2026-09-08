@@ -8,6 +8,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { TAB_BAR_CLEARANCE, useThemeColors } from "@/constants/theme";
 import type { CourseSummary, DueCardsResponse } from "@/lib/api";
 import { daysUntil } from "@/lib/checklist";
+import { useIsOnline } from "@/lib/network";
 import { usePurchases } from "@/lib/purchases";
 import {
   coursesQuery,
@@ -26,11 +27,11 @@ function formatReturn(days: number): string {
 export default function LearnScreen() {
   const colors = useThemeColors();
   const queryClient = useQueryClient();
-  const { isPremium, entitlement } = usePurchases();
+  const { hasPremium } = usePurchases();
+  const online = useIsOnline();
 
-  // The server is what actually unlocks a deck; the SDK flag only covers the seconds between
-  // paying and the webhook landing.
-  const premium = entitlement?.premium || isPremium;
+  // Derived in the provider so no screen can disagree with another about the same account.
+  const premium = hasPremium;
 
   const {
     data: courses = null,
@@ -41,6 +42,13 @@ export default function LearnScreen() {
 
   /** Offline on a device that has never loaded the deck list. The spinner would never end. */
   const waitingOffline = isPending && fetchStatus === "paused";
+
+  /*
+   * A failure only gets to say so while there IS a connection. Offline, the banner has
+   * already explained it, and "Try again" is a button that cannot work — the request would
+   * pause, the spinner would spin, and nothing would change.
+   */
+  const showFailure = failed && online;
 
   const unlocked =
     courses?.filter((course) => !course.isPremium || premium) ?? [];
@@ -91,6 +99,31 @@ export default function LearnScreen() {
       />
 
       <View className="gap-4 px-4">
+        {/*
+          Kana sits above the decks and outside all of this: it is a chart, not a course, so
+          it has no due count, no progress line and nothing to load. It stays reachable when
+          the deck list is still loading or failed outright, because it is the one thing here
+          that works with no server at all.
+        */}
+        <Card onPress={() => router.push("/kana")}>
+          <View className="flex-row items-center gap-3">
+            <View className="rounded-button bg-primary-tint px-3 py-2">
+              <Text className="text-heading text-primary">あ</Text>
+            </View>
+            <View className="flex-1 gap-1">
+              <CardTitle>Kana chart</CardTitle>
+              <CardCaption>
+                Hiragana and katakana, tap any character to hear it.
+              </CardCaption>
+            </View>
+            <Image
+              source="sf:chevron.right"
+              style={{ width: 12, height: 12 }}
+              tintColor={colors.inkSubtle}
+            />
+          </View>
+        </Card>
+
         {isPending && !failed && !waitingOffline ? (
           <ActivityIndicator className="py-8" />
         ) : null}
@@ -106,7 +139,7 @@ export default function LearnScreen() {
           </Card>
         ) : null}
 
-        {failed ? (
+        {showFailure ? (
           <Card tone="sunken">
             <Text className="text-body text-ink">
               Couldn&apos;t reach the server.
@@ -122,7 +155,7 @@ export default function LearnScreen() {
           return (
             <ActiveCourseCard
               course={course}
-              failed={result?.isError ?? false}
+              failed={(result?.isError ?? false) && online}
               key={course.id}
               onRetry={() => result?.refetch()}
               session={result?.data ?? null}

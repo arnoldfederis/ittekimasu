@@ -35,6 +35,16 @@ type PurchasesState = {
   isPremium: boolean;
   /** The server's answer, which lags a purchase by however long the webhook takes. */
   entitlement: EntitlementResponse | null;
+  /**
+   * What every SCREEN should ask. Either source saying yes is enough: the server is the one
+   * that actually unlocks a deck, and the SDK covers the seconds between paying and the
+   * webhook landing.
+   *
+   * Derived here rather than in each screen because they got it wrong separately — the learn
+   * tab combined both, the profile tab read the SDK alone, so a premium account granted by
+   * the webhook had its premium decks silently left out of "Cards learned".
+   */
+  hasPremium: boolean;
   offering: PurchasesOffering | null;
   monthly: PurchasesPackage | null;
   annual: PurchasesPackage | null;
@@ -200,6 +210,7 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
       configured: Boolean(API_KEY),
       isPremium,
       entitlement,
+      hasPremium: Boolean(entitlement?.premium) || isPremium,
       offering,
       monthly: offering?.monthly ?? null,
       annual: offering?.annual ?? null,

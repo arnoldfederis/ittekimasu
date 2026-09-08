@@ -25,7 +25,7 @@ import {
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { checklist } = useChecklist();
-  const { entitlement, isPremium, refresh } = usePurchases();
+  const { entitlement, hasPremium, refresh } = usePurchases();
   const { reminderHour } = useNotifications();
   const online = useIsOnline();
   // No template adopted means nothing to recalculate against.
@@ -44,7 +44,9 @@ export default function ProfileScreen() {
   // has actually seen. One request per unlocked deck is fine at two or three decks.
   const sessionQueries = useQueries({
     queries: (courses ?? [])
-      .filter((course) => !course.isPremium || isPremium)
+      // hasPremium, not the SDK flag: a deck unlocked by the webhook was being left out of
+      // the count entirely, so N4, N3 and Ward Office never showed up in "Cards learned".
+      .filter((course) => !course.isPremium || hasPremium)
       .map((course) => ({ ...dueQuery(course.id), meta: { silent: true } })),
   });
 
@@ -69,9 +71,9 @@ export default function ProfileScreen() {
     }, [refresh]),
   );
 
-  // The server is the source of truth for the plan; the SDK flag only covers the seconds
-  // between paying and the webhook landing.
-  const premium = entitlement?.premium || isPremium;
+  // One derivation, in the provider. Two screens computing this separately is what let the
+  // profile and the learn tab disagree about the same account.
+  const premium = hasPremium;
 
   const checklistPercent =
     checklist && checklist.totalCount > 0
@@ -158,9 +160,13 @@ export default function ProfileScreen() {
             <View className="gap-3">
               <View className="gap-1">
                 <CardTitle>Free plan</CardTitle>
+                {/*
+                  The kana chart is no longer named as a deck here: it is unmetered, so
+                  listing it beside a daily card limit implies it spends one.
+                */}
                 <CardCaption>
-                  {entitlement?.dailyReviewLimit ?? 20} cards a day · Kana and
-                  N5
+                  {entitlement?.dailyReviewLimit ?? 20} cards a day · JLPT N5 ·
+                  Kana chart free
                 </CardCaption>
               </View>
               <Button

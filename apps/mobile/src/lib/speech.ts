@@ -45,9 +45,11 @@ export function readingOf(backText: string): string | null {
 /**
  * What to say out loud for a card.
  *
- * A vocabulary card carries its reading on the back. A kana card has no separate reading —
- * the character on the FRONT is the sound — so its back is romaji, which must never be read
- * aloud by a Japanese voice ("shi" spoken as English is not the point of the exercise).
+ * A vocabulary card carries its reading on the back, before the `·`. The fallback to the
+ * front is what keeps a card whose back has no reading segment from being read out in
+ * English by a Japanese voice — kana used to be exactly that case, and although the chart
+ * now speaks its glyphs directly (components/kana-sheet.tsx), any future deck that puts the
+ * spoken form on the front gets the same protection.
  */
 export function spokenTextOf(
   frontText: string | undefined,

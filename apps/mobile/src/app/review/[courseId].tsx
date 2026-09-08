@@ -22,8 +22,10 @@ import {
   type DueCardsResponse,
   type ReviewRating,
 } from "@/lib/api";
+import { TEXT_SCALE_FACTOR, useDisplayPrefs } from "@/lib/display-prefs";
 import { useNotifications } from "@/lib/notifications";
 import { dueQuery, queryKeys } from "@/lib/queries";
+import { formatBackText } from "@/lib/romaji";
 import { REVIEW_MUTATION_KEY } from "@/lib/query-client";
 import {
   applyAudioMode,
@@ -125,6 +127,8 @@ export default function ReviewScreen() {
   const [sound, setSound] = useState(true);
   const [voice, setVoice] = useState<string | null>(null);
   const [audioHint, setAudioHint] = useState(false);
+  const displayPrefs = useDisplayPrefs();
+  const scale = TEXT_SCALE_FACTOR[displayPrefs.textScale];
   /** The answer that can still be taken back, cleared once the next card is rated. */
   const [lastAnswer, setLastAnswer] = useState<{
     cardId: string;
@@ -328,24 +332,31 @@ export default function ReviewScreen() {
       </Pressable>
 
       <View className="flex-row items-center gap-3">
-        <Pressable
-          accessibilityLabel={
-            sound ? "Mute pronunciation" : "Unmute pronunciation"
-          }
-          accessibilityRole="button"
-          className="h-10 w-10 items-center justify-center rounded-pill active:bg-surface-sunken"
-          onPress={async () => {
-            const next = !sound;
-            setSound(next);
-            await setSoundEnabled(next);
-          }}
-        >
-          <Image
-            source={sound ? "sf:speaker.wave.2" : "sf:speaker.slash"}
-            style={{ width: 18, height: 18 }}
-            tintColor={colors.inkMuted}
-          />
-        </Pressable>
+        {/*
+          No display control up here. Text size and romaji live in Settings ▸ Display, where
+          a change can be previewed against a card before it is committed to. A session
+          header is for the two things worth changing mid-session: the sound, and leaving.
+        */}
+        <View className="flex-row items-center">
+          <Pressable
+            accessibilityLabel={
+              sound ? "Mute pronunciation" : "Unmute pronunciation"
+            }
+            accessibilityRole="button"
+            className="h-10 w-10 items-center justify-center rounded-pill active:bg-surface-sunken"
+            onPress={async () => {
+              const next = !sound;
+              setSound(next);
+              await setSoundEnabled(next);
+            }}
+          >
+            <Image
+              source={sound ? "sf:speaker.wave.2" : "sf:speaker.slash"}
+              style={{ width: 18, height: 18 }}
+              tintColor={colors.inkMuted}
+            />
+          </Pressable>
+        </View>
 
         <Image
           source="sf:flame.fill"
@@ -476,7 +487,7 @@ export default function ReviewScreen() {
           }}
           style={{ borderCurve: "continuous" }}
         >
-          {card?.seen === false ? (
+          {!card?.seen ? (
             <View className="rounded-pill bg-primary-tint px-2 py-0.5">
               <Text className="font-semibold text-caption text-primary">
                 NEW
@@ -484,7 +495,15 @@ export default function ReviewScreen() {
             </View>
           ) : null}
 
-          <Text className="text-center font-semibold text-display text-ink">
+          {/*
+            Sized from the type scale rather than the class, so the display setting multiplies
+            it. The ratio to the back text below is preserved, which is what keeps the card
+            looking like itself at every size.
+          */}
+          <Text
+            className="text-center font-semibold text-ink"
+            style={{ fontSize: 34 * scale, lineHeight: 34 * scale * 1.2 }}
+          >
             {card?.frontText}
           </Text>
 
@@ -495,8 +514,17 @@ export default function ReviewScreen() {
             >
               <View className="h-px w-16 bg-line" />
               <View className="flex-row items-center gap-3">
-                <Text className="text-center text-heading text-ink">
-                  {card?.backText}
+                {/*
+                  The reading is transliterated when the learner has asked for romaji —
+                  おとこ · man becomes otoko · man. Display only: what gets SPOKEN is always
+                  the kana, because a Japanese voice reading "otoko" pronounces an English
+                  word.
+                */}
+                <Text
+                  className="flex-shrink text-center text-ink"
+                  style={{ fontSize: 22 * scale, lineHeight: 22 * scale * 1.3 }}
+                >
+                  {formatBackText(card?.backText ?? "", displayPrefs.showRomaji)}
                 </Text>
                 {spokenTextOf(card?.frontText, card?.backText) ? (
                   <Pressable
@@ -595,6 +623,7 @@ export default function ReviewScreen() {
           {reviewedToday} reviewed today
         </Text>
       </View>
+
     </View>
   );
 }

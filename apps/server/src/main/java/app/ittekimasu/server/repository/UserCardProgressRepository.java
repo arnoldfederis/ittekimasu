@@ -26,6 +26,10 @@ public interface UserCardProgressRepository extends JpaRepository<UserCardProgre
    */
   int countByUserIdAndCreatedAtGreaterThanEqual(UUID userId, Instant since);
 
+  /** The same count for ONE deck: the per-deck half of the new-card pacing. */
+  int countByUserIdAndCardCourseIdAndCreatedAtGreaterThanEqual(
+      UUID userId, UUID courseId, Instant since);
+
   /** Everything this user has learned, for a wholesale reset. */
   void deleteAllByUserId(UUID userId);
 

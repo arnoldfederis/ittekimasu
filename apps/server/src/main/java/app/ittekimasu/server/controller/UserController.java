@@ -1,6 +1,7 @@
 package app.ittekimasu.server.controller;
 
 import app.ittekimasu.server.dto.request.BulkRatingRequest;
+import app.ittekimasu.server.dto.request.CorrectRatingRequest;
 import app.ittekimasu.server.dto.request.UpdateRemindersRequest;
 import app.ittekimasu.server.dto.response.EntitlementResponse;
 import app.ittekimasu.server.dto.response.BulkCardsResponse;
@@ -94,6 +95,22 @@ public class UserController {
   @GetMapping("/me/cards")
   public List<SeenCardResponse> seenCards(@AuthenticationPrincipal FirebasePrincipal principal) {
     return reviewService.listSeenCards(userService.findOrCreate(principal).getId());
+  }
+
+  /**
+   * Changes the answer already recorded for one card.
+   *
+   * <p>A correction, not a review: it spends no daily allowance and moves no streak, and it
+   * is measured from where the card stood before its last answer so pressing the same button
+   * twice lands on the same schedule.
+   */
+  @PatchMapping("/me/cards/{cardId}")
+  public SeenCardResponse correctRating(
+      @AuthenticationPrincipal FirebasePrincipal principal,
+      @PathVariable UUID cardId,
+      @Valid @RequestBody CorrectRatingRequest request) {
+    return reviewService.correctRating(
+        userService.findOrCreate(principal).getId(), cardId, request.rating());
   }
 
   /**

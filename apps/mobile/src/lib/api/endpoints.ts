@@ -41,6 +41,16 @@ export const api = {
   getSeenCards: () => request<SeenCard[]>("/users/me/cards"),
 
   /**
+   * Changes the answer already recorded for one card. A correction, not a review: it spends
+   * no daily allowance, and pressing the same button twice lands on the same schedule.
+   */
+  correctCardRating: (cardId: string, rating: ReviewRating) =>
+    request<SeenCard>(`/users/me/cards/${cardId}`, {
+      method: "PATCH",
+      body: { rating },
+    }),
+
+  /**
    * Forgets a card: back to unseen, taught again from scratch. Distinct from undoReview,
    * which takes back one answer.
    */

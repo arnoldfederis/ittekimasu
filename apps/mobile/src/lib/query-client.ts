@@ -3,12 +3,19 @@ import { createAsyncStoragePersister } from "@tanstack/query-async-storage-persi
 import {
   focusManager,
   MutationCache,
+  onlineManager,
   type Query,
   QueryCache,
   QueryClient,
 } from "@tanstack/react-query";
 import { AppState, type AppStateStatus } from "react-native";
-import { ApiError, api, NotSignedInError, type ReviewRating } from "@/lib/api";
+import {
+  ApiError,
+  api,
+  NetworkError,
+  NotSignedInError,
+  type ReviewRating,
+} from "@/lib/api";
 import { toast } from "@/lib/toast";
 
 declare module "@tanstack/react-query" {
@@ -26,9 +33,14 @@ declare module "@tanstack/react-query" {
  *   "couldn't reach the server" toast on top of it would be a lie.
  * - NotSignedInError means the session ended mid-request; the router has already moved
  *   the user to sign-in.
+ * - A transport failure WHILE OFFLINE is what the offline banner is for. A request can still
+ *   escape after the connection drops — one already in flight, or a refetch that beat the
+ *   network listener — and the user should not get a second, worse-worded notice about a
+ *   state they can already see and cannot act on.
  */
 function isSilent(error: unknown): boolean {
   if (error instanceof NotSignedInError) return true;
+  if (error instanceof NetworkError && !onlineManager.isOnline()) return true;
   return error instanceof ApiError && error.requiresPremium;
 }
 

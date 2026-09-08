@@ -140,6 +140,13 @@ export default function SettingsScreen() {
 
           <Section title="STUDY">
             <ListRow
+              icon="textformat.size"
+              onPress={() => router.push("/display-settings")}
+              showChevron
+              subtitle="Text size and romaji readings"
+              title="Display"
+            />
+            <ListRow
               icon="speaker.wave.2"
               onPress={() => router.push("/voice")}
               showChevron

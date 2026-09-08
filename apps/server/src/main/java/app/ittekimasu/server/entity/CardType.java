@@ -9,8 +9,12 @@ package app.ittekimasu.server.entity;
  */
 public enum CardType {
   VOCAB,
-  /** A single kana. Back is romaji, not `reading · meaning` — the character IS the reading. */
-  KANA,
+  /*
+   * KANA was here until V16. Kana is no longer a deck — the chart ships in the client
+   * (apps/mobile/src/constants/kana.ts) because a syllabary is a table to read off, not
+   * material to schedule. V16 deletes the last rows that used this value; do not re-add the
+   * constant without re-adding cards that need it.
+   */
   GRAMMAR,
   KANJI,
   PHRASE

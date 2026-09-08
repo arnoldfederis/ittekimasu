@@ -45,16 +45,29 @@ public class ReviewService {
   static final int PREMIUM_SESSION_SIZE = 50;
 
   /**
-   * How many cards a learner meets for the FIRST time in one day, across every deck.
+   * How many cards a learner meets for the FIRST time in one day, PER DECK.
    *
-   * <p>Not a paywall — premium is bound by this too. It is pacing, and it exists for two
+   * <p>Not a paywall — premium is bound by it too. It is pacing, and it exists for two
    * reasons. A hundred unfamiliar characters in one sitting is how cramming works and
    * cramming does not stick; and without it a deck can be exhausted in an afternoon, leaving
    * the app with nothing to offer for the six days SM-2 then imposes.
    *
+   * <p>Per deck rather than across all of them, which is what it used to be. Shared, a
+   * subscriber who had just unlocked three decks got the same ten cards a day as before and
+   * could not tell what they had paid for — the pacing was silently doing the job of a
+   * paywall. Ten per deck keeps a single deck at exactly the pace it always had (a free user
+   * has one deck, so nothing changes for them) while letting someone who owns four decks
+   * actually start more than one of them.
+   *
    * <p>Reviews are untouched: everything due still comes back the moment it is due.
    */
-  static final int NEW_CARDS_PER_DAY = 10;
+  static final int NEW_CARDS_PER_DECK_PER_DAY = 10;
+
+  /**
+   * The ceiling across every deck, so "ten per deck" cannot become forty new cards in an
+   * evening. Three decks' worth is already more first-time material than a sitting can hold.
+   */
+  static final int NEW_CARDS_PER_DAY_TOTAL = 30;
 
   /**
    * One day boundary for the whole app rather than a per-user timezone. Everyone here is
@@ -117,7 +130,7 @@ public class ReviewService {
      * unconditionally: material already half-learned is worth more than material never seen,
      * and burying a backlog under new words is how a deck becomes unmanageable.
      */
-    int newRemaining = newCardsRemainingToday(userId, today);
+    int newRemaining = newCardsRemainingToday(userId, courseId, today);
     int newSlots = Math.min(sessionSize - due.size(), newRemaining);
     List<Card> unseen =
         newSlots <= 0
@@ -323,8 +336,76 @@ public class ReviewService {
   @Transactional(readOnly = true)
   public List<SeenCardResponse> listSeenCards(UUID userId) {
     return progressRepository.findAllSeenWithCard(userId).stream()
-        .map(progress -> SeenCardResponse.from(progress, intervalsFor(Schedule.of(progress))))
+        .map(progress -> SeenCardResponse.from(progress, intervalsFor(correctionBaseline(progress))))
         .toList();
+  }
+
+  /**
+   * The state a correction is measured from: where the card stood BEFORE its most recent
+   * answer.
+   *
+   * <p>This is what makes changing a difficulty in the browser idempotent. Applying SM-2 to
+   * the CURRENT state compounds — tapping Easy three times took a card from 6 days to 21 to
+   * 76 to 289, because each tap multiplied the interval the previous tap had just produced.
+   * A browser is not a review session; "I meant to press Hard" must land on the same schedule
+   * however many times it is pressed.
+   *
+   * <p>Three cases, and the middle one is easy to miss:
+   *
+   * <ul>
+   *   <li>A snapshot exists — the card has been answered more than once, so rewind to it.
+   *   <li>No snapshot but a recorded rating — the card's ONLY answer was its first, so the
+   *       baseline is an unseen card. Falling through to the current state here is what kept
+   *       corrections compounding after the fix to the general case.
+   *   <li>Neither — a row written before V15 recorded any of this. The current state is the
+   *       best available answer rather than a right one, and one real review fixes it.
+   * </ul>
+   */
+  private Schedule correctionBaseline(UserCardProgress progress) {
+    if (progress.getPreviousLastReviewedAt() != null) {
+      return new Schedule(
+          progress.getPreviousEaseFactor(),
+          progress.getPreviousIntervalDays(),
+          progress.getPreviousStreakCount());
+    }
+    if (progress.getLastRating() != null) {
+      return Schedule.newCard();
+    }
+    return Schedule.of(progress);
+  }
+
+  /**
+   * Changes the answer already given for one card, rather than answering it again.
+   *
+   * <p>Not a review: no daily allowance spent, no streak moved, no study day recorded. The
+   * card was counted when it was actually answered, and correcting a mis-tap minutes later
+   * is not a second act of study.
+   *
+   * <p>The undo snapshot is deliberately NOT rewritten, so a second correction starts from
+   * the same place as the first.
+   */
+  @Transactional
+  public SeenCardResponse correctRating(UUID userId, UUID cardId, ReviewRating rating) {
+    UserCardProgress progress =
+        progressRepository
+            .findByUserIdAndCardId(userId, cardId)
+            .orElseThrow(() -> new ResourceNotFoundException("Review", cardId));
+
+    applyCorrection(progress, rating, LocalDate.now(APP_ZONE), Instant.now());
+    return SeenCardResponse.from(progress, intervalsFor(correctionBaseline(progress)));
+  }
+
+  /** Shared by the single correction and the bulk one, so the two can never drift. */
+  private void applyCorrection(
+      UserCardProgress progress, ReviewRating rating, LocalDate today, Instant now) {
+    Schedule next = scheduler.processReview(correctionBaseline(progress), rating);
+
+    progress.setLastRating(rating);
+    progress.setEaseFactor(next.easeFactor());
+    progress.setIntervalDays(next.intervalDays());
+    progress.setStreakCount(next.streakCount());
+    progress.setNextReviewDate(today.plusDays(next.intervalDays()));
+    progress.setLastReviewedAt(now);
   }
 
   /**
@@ -336,7 +417,9 @@ public class ReviewService {
    * would spend a free learner's allowance for a week and inflate the grid with a day of
    * study that never happened.
    *
-   * <p>Each card still keeps its own undo snapshot, so one card can be put back afterwards.
+   * <p>Idempotent, like the single-card correction: each card is measured from where it
+   * stood before its last answer, so pressing "set all to Easy" twice does not multiply every
+   * interval twice. Each card keeps its undo snapshot, so one can still be put back.
    *
    * @return how many cards were rescheduled.
    */
@@ -351,20 +434,7 @@ public class ReviewService {
             .toList();
 
     for (UserCardProgress progress : rows) {
-      Schedule next = scheduler.processReview(Schedule.of(progress), rating);
-
-      progress.setPreviousEaseFactor(progress.getEaseFactor());
-      progress.setPreviousIntervalDays(progress.getIntervalDays());
-      progress.setPreviousStreakCount(progress.getStreakCount());
-      progress.setPreviousNextReviewDate(progress.getNextReviewDate());
-      progress.setPreviousLastReviewedAt(progress.getLastReviewedAt());
-
-      progress.setLastRating(rating);
-      progress.setEaseFactor(next.easeFactor());
-      progress.setIntervalDays(next.intervalDays());
-      progress.setStreakCount(next.streakCount());
-      progress.setNextReviewDate(today.plusDays(next.intervalDays()));
-      progress.setLastReviewedAt(now);
+      applyCorrection(progress, rating, today, now);
     }
 
     return rows.size();
@@ -452,7 +522,7 @@ public class ReviewService {
 
     // Unseen cards are only work if the day's intake still has room. Otherwise the app would
     // nudge someone towards cards it has already decided not to hand over until tomorrow.
-    if (newCardsRemainingToday(userId, today) > 0
+    if (anyNewCardsRemainingToday(userId, today)
         && cardRepository.countUnseen(userId, accessible) > 0) {
       return true;
     }
@@ -468,16 +538,35 @@ public class ReviewService {
   }
 
   /**
-   * How many first-time cards are left in today's intake, across every deck.
+   * How many first-time cards are left in today's intake for ONE deck — whichever of the two
+   * limits bites first, the deck's ten or the day's thirty.
    *
    * <p>A progress row is created the first time a card is answered, so counting rows created
    * today counts exactly the cards introduced today — no extra column, and nothing to keep
    * in step.
    */
-  private int newCardsRemainingToday(UUID userId, LocalDate today) {
-    int introduced =
+  private int newCardsRemainingToday(UUID userId, UUID courseId, LocalDate today) {
+    Instant since = startOfDay(today);
+    int inDeck =
+        progressRepository.countByUserIdAndCardCourseIdAndCreatedAtGreaterThanEqual(
+            userId, courseId, since);
+    int everywhere = progressRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, since);
+
+    return Math.max(
+        0,
+        Math.min(
+            NEW_CARDS_PER_DECK_PER_DAY - inDeck, NEW_CARDS_PER_DAY_TOTAL - everywhere));
+  }
+
+  /**
+   * Whether ANY accessible deck still has room in today's intake. Only the day-wide ceiling
+   * can answer that without naming a deck, which is enough for the reminder: if the ceiling
+   * is spent, no deck has room either.
+   */
+  private boolean anyNewCardsRemainingToday(UUID userId, LocalDate today) {
+    int everywhere =
         progressRepository.countByUserIdAndCreatedAtGreaterThanEqual(userId, startOfDay(today));
-    return Math.max(0, NEW_CARDS_PER_DAY - introduced);
+    return everywhere < NEW_CARDS_PER_DAY_TOTAL;
   }
 
   /** Null means unlimited — premium has no daily cap to count down from. */

@@ -20,7 +20,7 @@ public interface CardRepository extends JpaRepository<Card, UUID> {
    *
    * <p>Split from the unseen query because a session bounds them differently: everything due
    * is fair game up to the daily allowance, but NEW cards are paced (see
-   * ReviewService.NEW_CARDS_PER_DAY) so a 104-card deck is not handed over in one sitting.
+   * ReviewService.NEW_CARDS_PER_DECK_PER_DAY) so a 104-card deck is not handed over in one sitting.
    */
   @Query(
       """

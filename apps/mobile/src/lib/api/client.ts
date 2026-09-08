@@ -1,5 +1,6 @@
 import type { ErrorResponse } from "@/lib/api/types";
 import { getIdToken } from "@/lib/firebase";
+import { reportTransportFailure, reportTransportSuccess } from "@/lib/network";
 
 /**
  * Every route on the Spring backend is served under /api (see WebMvcConfig), except the
@@ -39,6 +40,23 @@ export class NotSignedInError extends Error {
   }
 }
 
+/**
+ * The request never reached the server: no connection, DNS failure, a dropped socket, a
+ * server that is down. Distinct from ApiError, which means the server answered and said no.
+ *
+ * It exists so the app can stay quiet about it while offline. `fetch` rejects with a raw
+ * platform string — "Network request failed", "The internet connection appears to be
+ * offline" — and showing that to someone who can already see an offline banner is both
+ * noise and the wrong voice.
+ */
+export class NetworkError extends Error {
+  constructor(cause: unknown) {
+    super("Could not reach the server.");
+    this.name = "NetworkError";
+    this.cause = cause;
+  }
+}
+
 export type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
@@ -58,18 +76,47 @@ export async function request<T>(
   }
 
   if (!anonymous) {
-    const token = await getIdToken();
+    let token: string | null;
+    try {
+      token = await getIdToken();
+    } catch (cause) {
+      /*
+       * Firebase refreshes an expired token over the network, so offline this rejects with
+       * its own raw string ("The internet connection appears to be offline") BEFORE the
+       * fetch below is ever reached. Same class of failure from the app's point of view —
+       * the request never left the device — so it gets the same type, and the same silence
+       * while the offline banner is up.
+       */
+      reportTransportFailure();
+      throw new NetworkError(cause);
+    }
+
     if (!token) {
       throw new NotSignedInError();
     }
     headers.Authorization = `Bearer ${token}`;
   }
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (cause) {
+    /*
+     * Transport failure, not a response. Typed so the layers above can tell "you are on a
+     * plane" apart from "the server said no" — and reported, because this is the only place
+     * that KNOWS the connection is dead. The platform's own reachability flag says otherwise
+     * in exactly the cases that matter.
+     */
+    reportTransportFailure();
+    throw new NetworkError(cause);
+  }
+
+  // Reached the server. Even a 401 or a 404 proves the connection is back.
+  reportTransportSuccess();
 
   if (!response.ok) {
     throw new ApiError(

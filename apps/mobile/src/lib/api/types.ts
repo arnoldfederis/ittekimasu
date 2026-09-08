@@ -125,9 +125,9 @@ export type SeenCard = {
   nextReviewDate: string;
   streakCount: number;
   /**
-   * What each answer would schedule from where the card stands NOW. Easy on a card already
-   * six days out is twenty-odd days, not six — the multiplier applies to the current
-   * interval, and showing it beats surprising someone with it.
+   * What each answer would schedule if it replaced the answer already given — measured from
+   * the correction baseline, the same state the PATCH applies from, so the number shown is
+   * the number the tap produces however many times it is pressed.
    */
   intervals: IntervalPreview;
 };
