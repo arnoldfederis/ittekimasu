@@ -69,7 +69,12 @@ yarn-error.log*
 .claude
 
 # spring env
-apps/server/src/main/resources/application.yaml
+#
+# application.yaml is now COMMITTED and holds no secrets — a gitignored one meant CI and
+# `docker build` produced an image with no Spring configuration at all. Local values live
+# in application-local.yaml, which application.yaml imports with `optional:` so the
+# container works without it.
+apps/server/src/main/resources/application-local.yaml
 
 #firebase env
 apps/server/src/main/resources/firebase-config.json

@@ -1,0 +1,42 @@
+# Build context is the repo root (see apps/server/Dockerfile), so this has to exclude
+# the mobile app and the Node tree too — otherwise every `docker build` ships ~1 GB of
+# node_modules and iOS build output to the daemon before it does anything.
+
+.git
+.github
+node_modules
+**/node_modules
+.turbo
+**/.turbo
+.devbox
+.direnv
+graphify-out
+.codegraph
+
+# Mobile app: nothing in it is part of the server image.
+apps/mobile
+
+# Maven output — rebuilt inside the image, and a host-built jar here would be copied
+# over the one the build stage produces.
+apps/server/target
+
+# Secrets. firebase-config.json is gitignored but present locally, and .env holds the
+# RevenueCat webhook secret and the OneSignal REST key. Neither belongs in a layer.
+.env
+.env.*
+**/.env
+**/.env.*
+**/firebase-config.json
+tools/secrets
+tools/certs
+
+# Local-only tooling and docs.
+tools/nix
+process-compose.yaml
+devbox.json
+devbox.lock
+*.md
+!apps/server/**/*.md
+.idea
+.vscode
+.DS_Store

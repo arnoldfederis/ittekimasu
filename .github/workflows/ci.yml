@@ -1,0 +1,194 @@
+name: CI
+
+# Reads no event-controlled text (no issue/PR titles or bodies reach a `run:` block),
+# so there is no injection surface here. Keep it that way: if a step ever needs one of
+# those, bind it through `env:` and reference it as "$VAR", never inline as ${{ }}.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Two jobs, not one. The mobile app is Bun and the server is Maven; running them
+  # together means a Java compile error hides a Biome failure and every run pays for
+  # both toolchains. Split, they also run in parallel.
+  mobile:
+    name: Mobile — lint & typecheck
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+      TURBO_TEAM: ${{ vars.TURBO_TEAM }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          # Pinned, not `latest`. bunfig.toml sets linker = "hoisted" for Expo
+          # autolinking, and a Bun release that changes install behaviour would show
+          # up as a native-module failure in a build, not as a CI failure here.
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run --filter mobile lint
+
+      - name: Typecheck
+        run: bun run --filter mobile check-types
+
+      - name: Doctor
+        # Advisory, and for one specific reason: expo-doctor keeps recommending
+        # @expo/ui, which 57.0.12 cannot compile ("cannot find type 'PaddingValue'")
+        # and which CLAUDE.md records as deliberately excluded. That is a known false
+        # positive, not a licence to ignore the rest — read the output when it is red.
+        continue-on-error: true
+        working-directory: apps/mobile
+        run: bunx expo-doctor
+
+      - name: Bundle
+        # Metro resolves the whole graph here, so a bad import or a missing asset fails
+        # in ~2 minutes instead of 25 minutes into an EAS build. Typecheck does not
+        # catch either: tsc never sees `require("@/assets/images/icon.png")`.
+        #
+        # app.config.ts reads .env, which is gitignored, so these are placeholders —
+        # export does not run config plugins, so the values only need to exist. The
+        # REAL ones live in EAS environment variables, not here (see mobile-release.yml).
+        working-directory: apps/mobile
+        env:
+          EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID: 0-ci.apps.googleusercontent.com
+          EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID: 0-ci.apps.googleusercontent.com
+          EXPO_PUBLIC_API_URL: https://ci.invalid
+          EXPO_PUBLIC_FIREBASE_API_KEY: ci
+          EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: ci.invalid
+          EXPO_PUBLIC_FIREBASE_PROJECT_ID: ci
+          EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET: ci
+          EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID: "0"
+          EXPO_PUBLIC_FIREBASE_APP_ID: ci
+          EXPO_PUBLIC_REVENUECAT_API_KEY: ci
+          EXPO_PUBLIC_ONESIGNAL_APP_ID: 00000000-0000-0000-0000-000000000000
+          EXPO_PUBLIC_SENTRY_DSN: ""
+        run: bunx expo export --platform ios --output-dir /tmp/export
+
+      - name: Icons are in sync with the mark
+        # Every icon is GENERATED from src/constants/brand-mark.ts, so changing the mark
+        # and forgetting to re-run leaves the app shipping the old one — which is exactly
+        # how the marketing site ended up serving another product's logo for months.
+        #
+        # Compares the SVG outputs ONLY, never the PNGs: sharp's PNG encoder is not
+        # byte-reproducible across libvips builds, so diffing rasters here would fail on
+        # Linux against assets rendered on a Mac. The SVGs are generated as strings and
+        # are exactly deterministic, and they change whenever the geometry does — which
+        # is the thing worth catching.
+        working-directory: apps/mobile
+        run: |
+          set -euo pipefail
+          bun run icons --mobile
+          if ! git diff --quiet -- assets/brand assets/expo.icon; then
+            echo "::error::Brand SVGs are stale. Run 'bun run icons' in apps/mobile and commit."
+            git diff --stat -- assets/brand assets/expo.icon
+            exit 1
+          fi
+
+  server:
+    name: Server — test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    # ServerApplicationTests is a @SpringBootTest: it starts the real context, so it
+    # needs a real Postgres. Without this the suite dies with "Connection to
+    # pg.ittekimasu.dev:5432 refused" and only the MockMvc slices pass.
+    services:
+      postgres:
+        image: postgres:18-trixie
+        env:
+          POSTGRES_USER: ittekimasu
+          POSTGRES_PASSWORD: ittekimasu
+          POSTGRES_DB: ittekimasu
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ittekimasu"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Fabricate a Firebase service account
+        # FirebaseConfig throws on startup when the credentials file is missing, so the
+        # context cannot load without one. A REAL key is not needed and should not be a
+        # CI secret: nothing in the suite verifies a token against Google, and
+        # GoogleCredentials.fromStream only parses the JSON and the PEM — it makes no
+        # network call until a token is actually requested. Generating a throwaway
+        # keypair keeps this runnable from a fork and keeps a long-lived Google private
+        # key out of the repo's secrets.
+        run: |
+          set -euo pipefail
+          mkdir -p apps/server/src/test/resources
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/ci-key.pem 2>/dev/null
+          jq -n --rawfile key /tmp/ci-key.pem '{
+            type: "service_account",
+            project_id: "ittekimasu-ci",
+            private_key_id: "ci",
+            private_key: $key,
+            client_email: "ci@ittekimasu-ci.iam.gserviceaccount.com",
+            client_id: "0",
+            auth_uri: "https://accounts.google.com/o/oauth2/auth",
+            token_uri: "https://oauth2.googleapis.com/token"
+          }' > apps/server/src/test/resources/firebase-config.json
+
+      - name: Test
+        # No continue-on-error. A suite that cannot fail the build is decoration — the
+        # server owns the entitlement and SM-2 logic, and
+        # ReviewServiceCorrectionIntegrationTest exists to pin behaviour that has
+        # already regressed once.
+        working-directory: apps/server
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/ittekimasu?currentSchema=app
+          SPRING_DATASOURCE_USERNAME: ittekimasu
+          SPRING_DATASOURCE_PASSWORD: ittekimasu
+        run: ./mvnw -B test
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: surefire-reports
+          path: apps/server/target/surefire-reports/
+          retention-days: 7
+
+  # Builds the image without pushing, so a broken Dockerfile is caught on the PR rather
+  # than on main with the deploy already in flight.
+  docker:
+    name: Server — image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./apps/server/Dockerfile
+          push: false
+          cache-from: type=gha,scope=ittekimasu-server-production

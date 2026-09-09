@@ -84,9 +84,15 @@ fi
 # ---------------------------------------------------------------------------
 log "Updating packages"
 export DEBIAN_FRONTEND=noninteractive
-# needrestart drops an interactive service-restart menu into the middle of an
-# Ubuntu Server upgrade. NEEDRESTART_MODE=a restarts them without asking.
-export NEEDRESTART_MODE=a
+# needrestart drops an interactive service-restart menu into the middle of an Ubuntu
+# Server upgrade, which hangs a non-interactive run forever.
+#
+# 'l' = list what needs restarting, restart nothing. NOT 'a' (restart everything
+# automatically): 'a' restarts tailscaled, and on a box you reach over Tailscale that
+# cuts your own SSH session mid-script — the shell gets SIGHUP and the run dies
+# somewhere undefined. Anything still on old libraries is picked up by the reboot this
+# script tells you to do at the end.
+export NEEDRESTART_MODE=l
 apt-get update -qq
 apt-get -y -qq upgrade
 apt-get install -y -qq ca-certificates curl gnupg htop ncdu jq chrony
@@ -224,13 +230,20 @@ EOF
 log "Docker daemon config"
 mkdir -p /etc/docker
 
+# NO "live-restore". It is incompatible with Swarm mode, which Dokploy uses, and Docker
+# does not warn — it refuses to start at all:
+#
+#   "live-restore daemon configuration is incompatible with swarm mode"
+#
+# The failure hides until the next reboot, because a daemon already running keeps the
+# config it started with. `del` as well as the merge, so an earlier run's copy comes back
+# out of an existing file.
 if [[ -f /etc/docker/daemon.json ]]; then
   # Dokploy writes its own keys here. Merge rather than overwrite.
   tmp=$(mktemp)
-  jq '. + {
+  jq 'del(."live-restore") + {
         "log-driver": "json-file",
         "log-opts": { "max-size": "10m", "max-file": "3", "compress": "true" },
-        "live-restore": true,
         "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65535, "Soft": 65535 } }
       }' /etc/docker/daemon.json > "$tmp" && mv "$tmp" /etc/docker/daemon.json
 else
@@ -238,12 +251,15 @@ else
 {
   "log-driver": "json-file",
   "log-opts": { "max-size": "10m", "max-file": "3", "compress": "true" },
-  "live-restore": true,
   "default-ulimits": { "nofile": { "Name": "nofile", "Hard": 65535, "Soft": 65535 } }
 }
 EOF
 fi
-echo "    30 MB ceiling per container. live-restore keeps containers up across a daemon restart."
+echo "    30 MB ceiling per container."
+
+# Docker was already installed when bootstrap.sh ran, so its `systemctl enable --now`
+# branch was skipped and a manually-installed daemon may not be enabled at boot.
+systemctl enable docker >/dev/null 2>&1 || true
 
 if command -v docker >/dev/null 2>&1; then
   warn "log-opts apply to NEWLY CREATED containers only. Anything already running keeps"

@@ -1,0 +1,216 @@
+# Ittekimasu production stack, deployed by Dokploy on a 2 vCPU / 4 GB VPS.
+#
+# Dokploy runs its own Traefik and its own Postgres (for Dokploy's state). Neither is
+# referenced here: this file owns ONLY the app and the app's database. Do not add a
+# Traefik service — you would have two fighting over :80 and :443.
+#
+# Routing: no ports are published to the host except the app's, bound to loopback.
+# Dokploy attaches its Traefik to this stack's network and proxies to `server:4000`,
+# which is also what terminates TLS. Publishing 4000 publicly would bypass it.
+#
+# Memory budget on this box, after Dokploy's own stack takes ~700 MB - 1 GB:
+#   postgres-db  640 MB
+#   server      1408 MB   (JVM heap is 70% of this — see apps/server/Dockerfile)
+#   ------------------
+#   ~2 GB, leaving the remainder for the kernel and page cache.
+
+services:
+  postgres-db:
+    # Plain Postgres, not pgvector: nothing here does embeddings or similarity search.
+    # The pgvector image is the same Postgres plus an extension that would never be
+    # enabled, and it is the larger pull on a small disk.
+    #
+    # Postgres 18 moved the image's VOLUME from /var/lib/postgresql/data up to
+    # /var/lib/postgresql, which is why the mount below targets the parent. Mounting
+    # /data on an 18 image silently gives you a volume that holds nothing.
+    image: postgres:18-trixie
+    restart: unless-stopped
+
+    # Bound to the TAILSCALE interface, not to 0.0.0.0 — reachable from your tailnet
+    # (a GUI client on your Mac, psql, a restore) and from nowhere else.
+    #
+    # The Docker-bypasses-ufw problem is real but it is specifically about UNQUALIFIED
+    # publishes: `-p 5432:5432` binds 0.0.0.0 and Docker inserts its DNAT rule ahead of
+    # ufw's chain, so the port is on the public internet while `ufw status` calls it
+    # closed. Naming an interface — as this does — publishes ONLY there, so the bypass
+    # never applies. This is the right pattern; do not "simplify" it back to `expose`.
+    #
+    # Falls back to loopback when TAILSCALE_IP is unset, so a missing .env value degrades
+    # to "only reachable on the box" rather than to "open". Never set it to 0.0.0.0.
+    # Find it with `tailscale ip -4` (a 100.x.y.z address).
+    ports:
+      - "${TAILSCALE_IP:-127.0.0.1}:5432:5432"
+
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ittekimasu}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-ittekimasu}
+      # scram-sha-256 for new roles. The image defaults to it on 14+, but stating it
+      # means a restored older volume does not quietly keep md5.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+
+    command:
+      - postgres
+      - -c
+      - password_encryption=scram-sha-256
+      # --- sized for a 640 MB container, not for the host ---
+      # shared_buffers is 25% of what THIS CONTAINER may use, not 25% of the box.
+      # The default 128 MB is simultaneously too small to help and no protection
+      # against a planner that assumes it owns the page cache.
+      - -c
+      - shared_buffers=160MB
+      # Honest about the page cache it will actually get, so the planner stops
+      # preferring sequential scans it cannot afford.
+      - -c
+      - effective_cache_size=480MB
+      # work_mem is PER SORT, PER CONNECTION. 8 MB x 30 connections x a couple of
+      # sorts each is the classic way a small Postgres gets OOM-killed.
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=96MB
+      # One application with a pool of 8. The default 100 is 100 backend processes.
+      - -c
+      - max_connections=30
+      # NVMe, not a spinning disk. Left at the default 4.0 the planner avoids index
+      # scans that are actually cheap here.
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - checkpoint_completion_target=0.9
+      # Cheap on CPU, real saving on a small disk.
+      - -c
+      - wal_compression=on
+      # Kept ON deliberately. This database holds purchases and study progress; a
+      # crash losing the last few hundred milliseconds of commits is not a trade
+      # worth making for a write volume this low.
+      - -c
+      - synchronous_commit=on
+
+    volumes:
+      - ittekimasu-data-prod:/var/lib/postgresql
+
+    healthcheck:
+      # -h 127.0.0.1 forces TCP. Without it pg_isready succeeds over the unix socket
+      # while the TCP listener is still coming up, and `server` starts too early.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+    deploy:
+      resources:
+        limits:
+          memory: 640M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  server:
+    image: ghcr.io/proghublabs/ittekimasu-server:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+
+    # Loopback only. Dokploy's Traefik reaches this over the compose network as
+    # `server:4000`; the host binding is for `curl` while you are SSH'd in.
+    ports:
+      - "127.0.0.1:4000:4000"
+
+    # Holds POSTGRES_PASSWORD, REVENUECAT_WEBHOOK_AUTHORIZATION, ONESIGNAL_REST_API_KEY.
+    # In Dokploy this is the stack's Environment tab, which writes the .env beside the
+    # compose file. Nothing secret is spelled out in this file.
+    env_file:
+      - .env
+
+    environment:
+      # --- Spring reads these directly; relaxed binding maps them onto application.yaml.
+      # DATABASE_URL is a Node convention and Spring ignores it entirely — the URL has
+      # to be JDBC, and currentSchema must be set or Flyway and Hibernate disagree
+      # about where the tables are.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-db:5432/${POSTGRES_DB:-ittekimasu}?currentSchema=app
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER:-ittekimasu}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+
+      # Matches Postgres's max_connections=30 with room for a psql session and a
+      # migration. (2 x cores) + 1 is the rule of thumb; more just moves the queue
+      # from the app, where you can see it, into the database, where you cannot.
+      SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "8"
+      SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "2"
+
+      # OFF in production. application.yaml has these on for local development, and
+      # left on here every query becomes a log line — which is exactly the unbounded
+      # log growth that fills the disk and takes the whole box down.
+      SPRING_JPA_SHOW_SQL: "false"
+      SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL: "false"
+
+      # The API docs are a map of every route for anyone who asks. Fine locally,
+      # not on a public host.
+      SPRINGDOC_API_DOCS_ENABLED: "false"
+      SCALAR_ENABLED: "false"
+
+      # Mounted below. The classpath default only exists in a dev checkout.
+      FIREBASE_SERVICE_ACCOUNT_LOCATION: file:/run/secrets/firebase-config.json
+
+      # Logs go to stdout for Docker to collect; no file appender, no log volume.
+      LOGGING_LEVEL_ROOT: INFO
+      LOGGING_LEVEL_APP_ITTEKIMASU: INFO
+      TZ: UTC
+
+    volumes:
+      # Read-only, and outside the image. Baking the service account into a layer would
+      # put a Google private key in every copy of the image on GHCR, and anyone who can
+      # pull it could mint tokens for your Firebase project.
+      #
+      # The file MUST exist on the host before this stack first starts. Docker creates a
+      # DIRECTORY at a missing bind-mount source, and the failure then reads as
+      # "Is a directory" from deep inside Spring rather than "you forgot the file".
+      #
+      # Ownership matters: a bind mount keeps the host's uid/gid, and this container runs
+      # as uid 10001 (the `app` user in apps/server/Dockerfile). Root-owned 0600 is
+      # unreadable to it. On the host, as root:
+      #
+      #   install -d -m 0755 /etc/ittekimasu
+      #   install -m 0400 fb.json /etc/ittekimasu/firebase-config.json
+      #   chown 10001:10001 /etc/ittekimasu/firebase-config.json
+      #
+      # chown, not `install -o 10001`: install resolves -o through the passwd database
+      # and there is no such user on the host, so it fails with "invalid user".
+      # chown takes a raw numeric uid. Result: 0400 owned by 10001 — readable by the
+      # container's user and root, nobody else.
+      - /etc/ittekimasu/firebase-config.json:/run/secrets/firebase-config.json:ro
+
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:4000/actuator/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      # Generous: this covers JVM startup AND Flyway running every migration, which
+      # on a cold database is the slowest thing that ever happens here.
+      start_period: 90s
+
+    depends_on:
+      postgres-db:
+        condition: service_healthy
+
+    deploy:
+      resources:
+        limits:
+          memory: 1408M
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  # Named, not bind-mounted, and never declared `external: true` — external means
+  # "Docker must find this already existing" and the stack refuses to start if it
+  # does not. Survives `docker compose down`; destroyed by `down -v`.
+  ittekimasu-data-prod:

@@ -29,6 +29,9 @@ function googleIosUrlScheme(): string | undefined {
 
 const iosUrlScheme = googleIosUrlScheme();
 
+/** From `extra.eas.projectId` below — the OTA endpoint is derived from it, never typed twice. */
+const EAS_PROJECT_ID = "5df7d65b-4e25-4364-adc5-03109611433a";
+
 const config: ExpoConfig = {
   name: "Ittekimasu",
   slug: "ittekimasu",
@@ -36,6 +39,26 @@ const config: ExpoConfig = {
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "ittekimasu",
+
+  /*
+   * Over-the-air updates. expo-updates was already a dependency but nothing configured
+   * it, so `eas update` had no endpoint and no runtime version to match against.
+   *
+   * The "fingerprint" policy hashes the actual native project — every native module,
+   * every config plugin, the app.config.ts values that reach the native build. An update
+   * is only ever delivered to a binary whose native side is identical, which is the whole
+   * safety property: a JS bundle that calls a native module the installed build does not
+   * contain would otherwise crash on launch with no way back.
+   *
+   * Adding these two keys changes the native project. They reach a device only after a
+   * prebuild and a rebuild, not a Metro reload.
+   */
+  runtimeVersion: {
+    policy: "fingerprint",
+  },
+  updates: {
+    url: `https://u.expo.dev/${EAS_PROJECT_ID}`,
+  },
   // "automatic" lets the OS drive light/dark. Without it iOS always reports light.
   userInterfaceStyle: "automatic",
   platforms: ["ios", "android"],
@@ -108,7 +131,7 @@ const config: ExpoConfig = {
   extra: {
     router: {},
     eas: {
-      projectId: "5df7d65b-4e25-4364-adc5-03109611433a",
+      projectId: EAS_PROJECT_ID,
     },
   },
   owner: "arnoldfederis",

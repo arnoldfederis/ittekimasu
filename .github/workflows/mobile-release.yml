@@ -1,0 +1,177 @@
+name: Mobile Release
+
+# EAS builds and OTA updates for apps/mobile.
+#
+# Nothing here reads event-controlled text in a `run:` block. The `inputs.*` values come
+# from workflow_dispatch, which only a repo collaborator can trigger, and they are still
+# bound through `env:` and referenced as "$VAR" rather than interpolated into a shell.
+#
+# ---------------------------------------------------------------------------
+# BEFORE THE FIRST RUN — this will fail without it
+# ---------------------------------------------------------------------------
+# app.config.ts calls loadEnv() on apps/mobile/.env, which is gitignored and therefore
+# does NOT exist on an EAS builder. googleIosUrlScheme() then returns undefined, the
+# Google Sign-In plugin receives {}, and the build dies with "Missing `iosUrlScheme`".
+#
+# The fix is EAS environment variables, NOT GitHub secrets: the values are needed on
+# Expo's build machines, where GitHub's secrets do not reach. From apps/mobile:
+#
+#   eas env:create --environment production --name EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID --value '...'
+#   eas env:create --environment production --name EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID --value '...'
+#   eas env:create --environment production --name EXPO_PUBLIC_API_URL --value 'https://api.ittekimasu.app'
+#   ... plus every EXPO_PUBLIC_FIREBASE_*, EXPO_PUBLIC_REVENUECAT_API_KEY,
+#       EXPO_PUBLIC_ONESIGNAL_APP_ID and EXPO_PUBLIC_SENTRY_DSN
+#
+# Those are all public by design — they are inlined into the bundle either way — so
+# plaintext visibility is correct. The one that is NOT:
+#
+#   eas env:create --environment production --name SENTRY_AUTH_TOKEN --visibility secret --value '...'
+#
+# Repeat with --environment preview for the preview profile.
+#
+# GitHub itself only needs EXPO_TOKEN (Expo dashboard, Access Tokens) as a secret.
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "EAS build profile"
+        type: choice
+        options: [preview, production]
+        default: preview
+      platform:
+        description: "Platform"
+        type: choice
+        options: [ios, android, all]
+        default: ios
+      submit:
+        description: "Submit to the store after a successful build"
+        type: boolean
+        default: false
+
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - "package.json"
+      - "bun.lock"
+
+concurrency:
+  group: mobile-release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Pushes to main: compare the project's native fingerprint against the last
+  # build on the channel, then either publish an OTA update or start a build.
+  #
+  # This is the whole reason expo-updates earns its place. A JS-only change —
+  # copy, a layout fix, a new screen — reaches devices in seconds as an update,
+  # with no 25-minute build and no App Store review. Only a change that really
+  # alters the native project (a new pod, an app.config.ts plugin edit, a new
+  # icon baked into the asset catalog) triggers a build.
+  #
+  # It targets the PREVIEW channel deliberately. Auto-shipping OTA straight to
+  # production on every merge means an unreviewed main is live for real users;
+  # promote to production through the dispatch path below, after looking at it.
+  #
+  # OFF until you turn it on: set the repository VARIABLE (not secret)
+  # MOBILE_CONTINUOUS_DEPLOY to "true" once the app is in TestFlight and you want
+  # merges to reach it automatically.
+  #
+  # Off by default because before the first release this job has nothing useful to
+  # do and can cost you something: an OTA update only reaches devices that already
+  # have a matching build installed, and when the fingerprint HAS changed — which it
+  # does the moment you touch an icon, a pod or app.config.ts — this job does not
+  # publish an update, it starts a full EAS build. Merging the icon work would have
+  # queued an iOS build nobody asked for.
+  # -------------------------------------------------------------------------
+  continuous-deploy:
+    name: Fingerprint — OTA or build
+    if: github.event_name == 'push' && vars.MOBILE_CONTINUOUS_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The fingerprint action compares against history; a shallow clone has none.
+          fetch-depth: 0
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - uses: expo/expo-github-action/continuous-deploy-fingerprint@v8
+        with:
+          profile: preview
+          branch: preview
+          working-directory: apps/mobile
+
+  # -------------------------------------------------------------------------
+  # Manual builds — the path for a TestFlight build and for the Shipaton
+  # submission itself.
+  # -------------------------------------------------------------------------
+  build:
+    name: EAS build
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    # --no-wait is deliberately NOT used, so this job blocks on EAS's queue and a red
+    # X here means a genuinely failed build. On the free tier that queue can be long;
+    # if you cancel the job the build carries on at EAS, and `eas build:list` finds it.
+    timeout-minutes: 90
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Confirm the linker did not get reverted
+        # bunfig.toml pins linker = "hoisted" because Bun's isolated linker makes
+        # duplicate physical copies of native modules and breaks Expo autolinking. Any
+        # local `expo install` reverts it, and the symptom on EAS is a native build
+        # failure a long way from the cause.
+        run: |
+          set -euo pipefail
+          if [ -d node_modules/.bun ]; then
+            echo "::error::node_modules/.bun exists — Bun used the isolated linker."
+            echo "bunfig.toml should set linker = hoisted. Re-run 'bun install' at the repo root."
+            exit 1
+          fi
+
+      - name: Build
+        working-directory: apps/mobile
+        env:
+          PROFILE: ${{ inputs.profile }}
+          PLATFORM: ${{ inputs.platform }}
+        run: eas build --non-interactive --profile "$PROFILE" --platform "$PLATFORM"
+
+      - name: Submit
+        # Separate, and opt-in. A build you can look at first is worth more than one
+        # already sent to Apple. Needs an App Store Connect API key registered with EAS
+        # (`eas credentials`); submit fails without it.
+        if: ${{ inputs.submit && inputs.profile == 'production' }}
+        working-directory: apps/mobile
+        env:
+          PLATFORM: ${{ inputs.platform }}
+        run: eas submit --non-interactive --profile production --platform "$PLATFORM" --latest
