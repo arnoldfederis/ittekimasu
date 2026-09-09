@@ -56,6 +56,39 @@ const PERSIST_BUSTER = "v1";
 
 export const REVIEW_MUTATION_KEY = ["review"] as const;
 
+/**
+ * Deliberately NOT ["review", "undo"]. setMutationDefaults matches by PREFIX, so that key
+ * would inherit the review defaults above — including submitReview as its mutationFn — and
+ * an undo replayed after a relaunch would re-answer the card it was meant to take back.
+ */
+export const UNDO_MUTATION_KEY = ["review-undo"] as const;
+
+/**
+ * Drops a rating that is still sitting in the offline queue, and reports whether it found
+ * one.
+ *
+ * This is what "undo" means while offline. The rating never left the device, so there is
+ * nothing on the server to DELETE — issuing one would 404, and worse, the queued POST would
+ * still be there to replay the moment a connection returned. Removing the paused mutation
+ * IS the undo.
+ *
+ * Only PAUSED mutations are eligible. One already in flight may well have been recorded, so
+ * that case has to go to the server.
+ */
+export function dropQueuedReview(client: QueryClient, cardId: string): boolean {
+  const cache = client.getMutationCache();
+  const queued = cache.findAll({
+    mutationKey: REVIEW_MUTATION_KEY,
+    predicate: (mutation) =>
+      mutation.state.isPaused &&
+      (mutation.state.variables as { cardId?: string } | undefined)?.cardId ===
+        cardId,
+  });
+
+  for (const mutation of queued) cache.remove(mutation);
+  return queued.length > 0;
+}
+
 /** One notice per replayed batch, not one per rejected card. */
 const CAP_NOTICE_INTERVAL = 10_000;
 let lastCapNoticeAt = 0;
@@ -163,6 +196,23 @@ export function createQueryClient(): QueryClient {
     },
 
     meta: { errorMessage: "Couldn't save that answer." },
+  });
+
+  /*
+   * Defaults for the undo, for the same reason the review has them: a paused DELETE has to
+   * outlive the screen that started it.
+   *
+   * Without a key of its own, an undo issued with no connection rehydrated after a relaunch
+   * with no mutationFn attached, failed with "No mutationFn found", and was dropped — while
+   * the rating it was meant to take back replayed successfully, because that one WAS keyed.
+   * The card stayed answered and nothing said so.
+   */
+  client.setMutationDefaults(UNDO_MUTATION_KEY, {
+    mutationFn: ({ cardId }: { cardId: string }) => api.undoReview(cardId),
+    networkMode: "online",
+    // A 404 means the server had nothing to take back. The card is already back on screen
+    // and re-rating overwrites whatever is there, so saying so would only worry them.
+    meta: { silent: true },
   });
 
   return client;

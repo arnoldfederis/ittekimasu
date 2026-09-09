@@ -25,7 +25,11 @@ import {
 import { TEXT_SCALE_FACTOR, useDisplayPrefs } from "@/lib/display-prefs";
 import { useNotifications } from "@/lib/notifications";
 import { dueQuery, queryKeys } from "@/lib/queries";
-import { REVIEW_MUTATION_KEY } from "@/lib/query-client";
+import {
+  dropQueuedReview,
+  REVIEW_MUTATION_KEY,
+  UNDO_MUTATION_KEY,
+} from "@/lib/query-client";
 import { formatBackText } from "@/lib/romaji";
 import {
   applyAudioMode,
@@ -282,39 +286,60 @@ export default function ReviewScreen() {
    * reversible. Offline it is a no-op: the rating itself has not reached the server yet.
    */
   const undo = useMutation({
+    // Keyed, so a DELETE queued with no connection can still be replayed after the app has
+    // been killed. Unkeyed it rehydrated with no mutationFn and was silently dropped — while
+    // the rating it was undoing replayed fine, because THAT one was keyed.
+    mutationKey: UNDO_MUTATION_KEY,
     mutationFn: ({ cardId }: { cardId: string }) => api.undoReview(cardId),
-
-    onMutate: ({ cardId: _cardId }) => {
-      if (!lastAnswer) return;
-      setIndex(lastAnswer.index);
-      // Revealed, because the learner has already seen this answer — hiding it again would
-      // make them tap through a card they were in the middle of correcting.
-      setRevealed(true);
-      setReviewed((count) => Math.max(0, count - 1));
-      setReviewedToday((count) => Math.max(0, count - 1));
-
-      // Say it again. The card is back on screen mid-correction, and hearing the reading is
-      // most of what the reveal is for.
-      const restored = cards[lastAnswer.index];
-      if (sound && restored) {
-        speakReading(
-          spokenTextOf(restored.frontText, restored.backText),
-          voice,
-        );
-      }
-
-      setLastAnswer(null);
-    },
 
     onSettled: () => {
       // Whether or not the server had something to take back, the card's state moved.
       queryClient.invalidateQueries({ queryKey: queryKeys.seenCards });
     },
 
-    // A 404 means the server had nothing to take back. The card is already back on screen
-    // and re-rating it will overwrite whatever is there, so saying so would only worry them.
     meta: { silent: true },
   });
+
+  /**
+   * Takes back the answer just given and puts the card back on screen.
+   *
+   * Four buttons sit side by side under a thumb and the app deliberately never asks "are you
+   * sure?" — so the way to make an honest rating feel safe is to make a wrong one
+   * reversible. That has to hold with no connection too, which is exactly when someone is
+   * rating fast and misses.
+   *
+   * The rollback is local and unconditional. It used to live in the mutation's onMutate,
+   * which tied taking back a tap to a request that may not run for hours.
+   */
+  const undoLastAnswer = useCallback(() => {
+    if (!lastAnswer) return;
+
+    setIndex(lastAnswer.index);
+    // Revealed, because the learner has already seen this answer — hiding it again would
+    // make them tap through a card they were in the middle of correcting.
+    setRevealed(true);
+    setReviewed((count) => Math.max(0, count - 1));
+    setReviewedToday((count) => Math.max(0, count - 1));
+
+    // Say it again. The card is back on screen mid-correction, and hearing the reading is
+    // most of what the reveal is for.
+    const restored = cards[lastAnswer.index];
+    if (sound && restored) {
+      speakReading(spokenTextOf(restored.frontText, restored.backText), voice);
+    }
+
+    /*
+     * If the rating is still in the offline queue, the server has never heard of it — so
+     * dropping the queued POST *is* the undo. Sending a DELETE instead would 404 against a
+     * review that was never created, and leave the POST in place to replay the moment a
+     * connection returned, re-answering the card behind the learner's back.
+     */
+    if (!dropQueuedReview(queryClient, lastAnswer.cardId)) {
+      undo.mutate({ cardId: lastAnswer.cardId });
+    }
+
+    setLastAnswer(null);
+  }, [lastAnswer, cards, sound, voice, queryClient, undo]);
 
   const header = (
     <View className="flex-row items-center justify-between px-4 pb-2">
@@ -570,7 +595,7 @@ export default function ReviewScreen() {
             accessibilityLabel={`Undo ${lastAnswer.rating.toLowerCase()}`}
             accessibilityRole="button"
             className="mb-2 flex-row items-center justify-center gap-1.5 self-center rounded-pill px-3 py-1 active:bg-surface-sunken"
-            onPress={() => undo.mutate({ cardId: lastAnswer.cardId })}
+            onPress={undoLastAnswer}
           >
             <Image
               source="sf:arrow.uturn.backward"

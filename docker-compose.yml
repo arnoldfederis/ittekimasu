@@ -122,11 +122,17 @@ services:
     ports:
       - "127.0.0.1:4000:4000"
 
-    # Holds POSTGRES_PASSWORD, REVENUECAT_WEBHOOK_AUTHORIZATION, ONESIGNAL_REST_API_KEY.
-    # In Dokploy this is the stack's Environment tab, which writes the .env beside the
-    # compose file. Nothing secret is spelled out in this file.
+    # Carries REVENUECAT_WEBHOOK_AUTHORIZATION and ONESIGNAL_REST_API_KEY into the
+    # container — they are read straight from the environment by application.yaml, so
+    # they never need naming in this file.
+    #
+    # In Dokploy this is the stack's Environment tab, which writes .env beside the compose
+    # file. required:false so a missing .env surfaces as the specific variable that is
+    # unset (which fails loudly and legibly) rather than as "env file not found", which
+    # points at plumbing instead of at the value you forgot.
     env_file:
-      - .env
+      - path: .env
+        required: false
 
     environment:
       # --- Spring reads these directly; relaxed binding maps them onto application.yaml.
