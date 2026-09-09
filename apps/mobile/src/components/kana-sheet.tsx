@@ -8,13 +8,13 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
-import { useThemeColors } from "@/constants/theme";
 import {
   glyphOf,
   KANA_ORDER,
   type KanaEntry,
   type KanaScript,
 } from "@/constants/kana";
+import { useThemeColors } from "@/constants/theme";
 import {
   applyAudioMode,
   getSelectedVoice,

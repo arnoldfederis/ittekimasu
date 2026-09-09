@@ -25,8 +25,8 @@ import {
 import { TEXT_SCALE_FACTOR, useDisplayPrefs } from "@/lib/display-prefs";
 import { useNotifications } from "@/lib/notifications";
 import { dueQuery, queryKeys } from "@/lib/queries";
-import { formatBackText } from "@/lib/romaji";
 import { REVIEW_MUTATION_KEY } from "@/lib/query-client";
+import { formatBackText } from "@/lib/romaji";
 import {
   applyAudioMode,
   dismissAudioHint,
@@ -524,7 +524,10 @@ export default function ReviewScreen() {
                   className="flex-shrink text-center text-ink"
                   style={{ fontSize: 22 * scale, lineHeight: 22 * scale * 1.3 }}
                 >
-                  {formatBackText(card?.backText ?? "", displayPrefs.showRomaji)}
+                  {formatBackText(
+                    card?.backText ?? "",
+                    displayPrefs.showRomaji,
+                  )}
                 </Text>
                 {spokenTextOf(card?.frontText, card?.backText) ? (
                   <Pressable
@@ -623,7 +626,6 @@ export default function ReviewScreen() {
           {reviewedToday} reviewed today
         </Text>
       </View>
-
     </View>
   );
 }

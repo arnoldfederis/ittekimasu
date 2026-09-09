@@ -68,7 +68,9 @@ export default function DisplaySettingsScreen() {
                 {/* An empty box, not a placeholder character: a dot where the reading was
                     reads as though the answer were "·". This only holds the height so the
                     two previews stay level when the toggle flips. */}
-                <View style={{ height: 15 * scale * 1.4, justifyContent: "center" }}>
+                <View
+                  style={{ height: 15 * scale * 1.4, justifyContent: "center" }}
+                >
                   {prefs.showRomaji ? (
                     <Text
                       className="font-semibold text-callout text-primary"
@@ -161,7 +163,9 @@ export default function DisplaySettingsScreen() {
               </Text>
             </View>
             <Image
-              source={prefs.showRomaji ? "sf:checkmark.circle.fill" : "sf:circle"}
+              source={
+                prefs.showRomaji ? "sf:checkmark.circle.fill" : "sf:circle"
+              }
               style={{ width: 22, height: 22 }}
               tintColor={prefs.showRomaji ? colors.primary : colors.inkSubtle}
             />

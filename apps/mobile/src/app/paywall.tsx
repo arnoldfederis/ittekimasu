@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import type { PurchasesPackage } from "react-native-purchases";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { BrandBackdrop } from "@/components/brand-backdrop";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useThemeColors } from "@/constants/theme";
@@ -85,6 +86,9 @@ export default function PaywallScreen() {
     // the device's full top inset because the provider is mounted at the root. Adding it
     // here stacks a second ~59pt gap on top of the sheet's own.
     <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
+      {/* First child, so everything below paints over it. */}
+      <BrandBackdrop />
+
       <View className="flex-row items-center justify-between px-4 pb-2">
         <Pressable
           accessibilityLabel="Close"
@@ -117,7 +121,16 @@ export default function PaywallScreen() {
           <Image
             contentFit="contain"
             source={require("../../assets/images/icon.png")}
-            style={{ width: 72, height: 72, borderRadius: 16 }}
+            // Lifted off the wash the backdrop paints, same as the sign-in screen.
+            style={{
+              width: 72,
+              height: 72,
+              borderRadius: 16,
+              shadowColor: "#000",
+              shadowOpacity: 0.18,
+              shadowRadius: 16,
+              shadowOffset: { width: 0, height: 6 },
+            }}
           />
           <Text className="text-center font-semibold text-ink text-title">
             Go further

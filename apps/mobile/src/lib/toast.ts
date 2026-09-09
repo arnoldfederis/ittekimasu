@@ -1,5 +1,5 @@
-import { toast as sonner } from "sonner-native";
 import { onlineManager } from "@tanstack/react-query";
+import { toast as sonner } from "sonner-native";
 import { ApiError, NetworkError, NotSignedInError } from "@/lib/api";
 
 /**

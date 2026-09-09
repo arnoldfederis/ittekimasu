@@ -64,7 +64,8 @@
     "lint": "biome check src",
     "format": "biome check --write src",
     "check-types": "tsc --noEmit",
-    "pre:push": "biome check src && tsc --noEmit"
+    "pre:push": "biome check src && tsc --noEmit",
+    "icons": "bun scripts/generate-brand-assets.mjs"
   },
   "private": true
 }

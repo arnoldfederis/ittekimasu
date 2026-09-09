@@ -52,7 +52,10 @@ const config: ExpoConfig = {
     package: "com.arnoldfederis.ittekimasu",
     softwareKeyboardLayoutMode: "resize",
     adaptiveIcon: {
-      backgroundColor: "#F5F1E6",
+      // The brand teal, matching android-icon-background.png. This is the fallback the
+      // launcher uses when it draws the layers itself rather than the background image —
+      // leaving it on the canvas cream put a cream torii on a cream ground.
+      backgroundColor: "#0F6E56",
       foregroundImage: "./assets/images/android-icon-foreground.png",
       backgroundImage: "./assets/images/android-icon-background.png",
       monochromeImage: "./assets/images/android-icon-monochrome.png",
@@ -90,8 +93,11 @@ const config: ExpoConfig = {
       {
         backgroundColor: "#F5F1E6",
         dark: { backgroundColor: "#14130F" },
+        // The rounded app tile, not a bare glyph: the splash canvas is the same cream as
+        // the mark's gate, so an unmasked torii would be invisible in light mode. Showing
+        // the tile the user just tapped also makes the launch read as continuous.
         image: "./assets/images/splash-icon.png",
-        imageWidth: 76,
+        imageWidth: 120,
       },
     ],
   ],

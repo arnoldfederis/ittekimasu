@@ -146,7 +146,6 @@ export default function KanaScreen() {
         script={script}
         showRomaji={prefs.showRomaji}
       />
-
     </>
   );
 }
