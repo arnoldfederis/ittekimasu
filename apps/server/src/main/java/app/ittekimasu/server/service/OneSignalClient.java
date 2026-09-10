@@ -99,4 +99,37 @@ public class OneSignalClient {
       return false;
     }
   }
+
+  /**
+   * Forgets a user, by the external id the app set with {@code OneSignal.login(firebaseUid)}.
+   *
+   * <p>Called when an account is deleted. Without it the push token, the device record and
+   * the external id outlive the account — and the privacy policy says deleting an account
+   * removes what is held for it.
+   *
+   * <p>Best-effort by design: it returns false rather than throwing, because a push provider
+   * being unreachable must never be the reason someone cannot delete their account. A 404 is
+   * a success in every sense that matters — the user was already gone, or never had a
+   * subscription because they declined notifications.
+   */
+  public boolean deleteUser(String externalId) {
+    if (!isConfigured() || externalId == null || externalId.isBlank()) {
+      return false;
+    }
+
+    try {
+      restClient
+          .delete()
+          .uri("/apps/{appId}/users/by/external_id/{externalId}", appId, externalId)
+          .header("Authorization", "%s %s".formatted(authScheme, apiKey))
+          .retrieve()
+          .toBodilessEntity();
+
+      log.info("OneSignal user deleted for external id {}", externalId);
+      return true;
+    } catch (Exception ex) {
+      log.warn("OneSignal delete failed for external id {}: {}", externalId, ex.getMessage());
+      return false;
+    }
+  }
 }

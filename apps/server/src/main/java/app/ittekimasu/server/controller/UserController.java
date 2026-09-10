@@ -164,10 +164,19 @@ public class UserController {
         reviewService.resetAllProgress(userService.findOrCreate(principal).getId()));
   }
 
-  /** Account deletion, required by App Store review guideline 5.1.1(v). */
+  /**
+   * Account deletion, required by App Store review guideline 5.1.1(v).
+   *
+   * <p>Two calls, in this order and not merged: the first is transactional and removes our
+   * data, the second reaches out to Firebase and OneSignal and cannot be. Committing the
+   * delete before making network calls is what stops a slow push provider from holding a
+   * database transaction open — and what guarantees the user's data is gone even if those
+   * calls fail.
+   */
   @DeleteMapping("/me")
   public ResponseEntity<Void> deleteMe(@AuthenticationPrincipal FirebasePrincipal principal) {
     userService.deleteByFirebaseUid(principal.uid());
+    userService.purgeExternalIdentity(principal.uid());
     return ResponseEntity.noContent().build();
   }
 }
