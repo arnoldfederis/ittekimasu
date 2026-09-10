@@ -164,8 +164,18 @@ export default function LearnScreen() {
 
           // Read as separate statements: chaining these inline narrows the query result
           // union down to `never` on the second access.
+          /*
+           * `isPending` only — deliberately NOT `isFetching`.
+           *
+           * useInvalidateOnFocus refetches every deck each time this tab is focused, and
+           * isFetching is true for those too, even though the cached session is right there.
+           * Keying the button off it made every tab switch flicker "Review 12 cards" →
+           * "Loading…" (disabled) → back.
+           *
+           * isPending means status === "pending": no data at all. That is the only case
+           * where the card must not guess at a label.
+           */
           const isPending = result?.isPending === true;
-          const isFetching = result?.isFetching === true;
           const isError = result?.isError === true;
 
           return (
@@ -175,7 +185,7 @@ export default function LearnScreen() {
               failed={isError && !activating && online}
               key={course.id}
               // Never claim "All caught up" off a request that has not answered yet.
-              loading={isPending || isFetching}
+              loading={isPending}
               onRetry={() => result?.refetch()}
               session={result?.data ?? null}
             />
@@ -257,6 +267,16 @@ function ActiveCourseCard({
   // "All caught up" reads as "this deck is over" without it. Spaced repetition is the whole
   // product, so the day the cards return is information, not a detail.
   const returnsIn = daysUntil(session?.nextDueDate ?? null);
+  /*
+   * No session has ever loaded for this deck. Used for BOTH the label and the disabled
+   * state so the two cannot disagree — a button reading "Review 12 cards" while disabled is
+   * worse than either state on its own.
+   *
+   * Note `!session`, not `loading` alone: a background refetch on tab focus has data in
+   * hand and must change nothing.
+   */
+  const awaitingFirstLoad = loading && !session;
+
   // Nothing to do today, but the deck is nowhere near finished — today's intake of new
   // cards is simply spent. Saying "All caught up" here would be a plain lie.
   const pacedOut =
@@ -272,7 +292,7 @@ function ActiveCourseCard({
     ? "Try again"
     : activating
       ? "Unlocking…"
-      : loading && !session
+      : awaitingFirstLoad
         ? "Loading…"
         : dueCount > 0
           ? `Review ${dueCount} card${dueCount === 1 ? "" : "s"}`
@@ -324,7 +344,9 @@ function ActiveCourseCard({
           open and nothing retrying would fix. Only `failed` offers an action.
         */}
         <Button
-          disabled={activating || loading || (!failed && dueCount === 0)}
+          disabled={
+            activating || awaitingFirstLoad || (!failed && dueCount === 0)
+          }
           onPress={() =>
             failed ? onRetry() : router.push(`/review/${course.id}`)
           }
