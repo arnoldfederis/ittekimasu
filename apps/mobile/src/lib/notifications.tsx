@@ -10,6 +10,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { AppState } from "react-native";
 import { LogLevel, OneSignal } from "react-native-onesignal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
@@ -100,6 +101,20 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     refreshPermission();
+
+    /*
+     * Re-read on every foreground, not just at mount.
+     *
+     * Permission can change while the app is backgrounded — the user taps "Open Settings"
+     * from the blocked card and grants it there, or turns it off later. Read once at mount,
+     * the app kept showing "Notifications are blocked" to someone who had just allowed
+     * them, and only a relaunch cleared it. That card's whole job is to be accurate.
+     */
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") refreshPermission();
+    });
+
+    return () => subscription.remove();
   }, [refreshPermission]);
 
   useEffect(() => {

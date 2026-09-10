@@ -35,7 +35,15 @@ const EAS_PROJECT_ID = "5df7d65b-4e25-4364-adc5-03109611433a";
 const config: ExpoConfig = {
   name: "Ittekimasu",
   slug: "ittekimasu",
-  version: "1.0.0",
+  /*
+   * Becomes CFBundleShortVersionString, and it MUST equal the Version string on the App
+   * Store Connect version page — "1.0" there and "1.0.0" here means the uploaded build
+   * never attaches to that version and cannot be selected for submission.
+   *
+   * The build NUMBER is not here: eas.json sets appVersionSource "remote", so EAS owns it
+   * and autoIncrement bumps it per production build.
+   */
+  version: "1.0",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "ittekimasu",

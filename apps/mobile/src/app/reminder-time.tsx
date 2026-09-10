@@ -104,8 +104,9 @@ export default function ReminderTimeScreen() {
           subscribed", the reminder silently never arrives, and nothing in the app explains
           why. iOS only grants permission once, so the only route back is Settings.
         */}
+        {/* mx-4 to match the toggle card above — without it this one ran edge to edge. */}
         {enabled && hasPermission === false ? (
-          <Card tone="sunken">
+          <Card className="mx-4" tone="sunken">
             <Text className="text-body text-ink">
               Notifications are blocked
             </Text>

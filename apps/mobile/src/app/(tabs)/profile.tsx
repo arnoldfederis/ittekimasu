@@ -25,7 +25,7 @@ import {
 export default function ProfileScreen() {
   const { user } = useAuth();
   const { checklist } = useChecklist();
-  const { entitlement, hasPremium, refresh } = usePurchases();
+  const { entitlement, hasPremium, resolved, refresh } = usePurchases();
   const { reminderHour } = useNotifications();
   const online = useIsOnline();
   // No template adopted means nothing to recalculate against.
@@ -144,7 +144,21 @@ export default function ProfileScreen() {
           </View>
         </Card>
 
-        {premium ? (
+        {/*
+          Neither card until both the SDK and the server have answered. A subscriber used to
+          see "Free plan · Upgrade" for the first second of every cold start: hasPremium is
+          false while the entitlement query is in flight, and that query is excluded from the
+          persisted cache on purpose, so it is always in flight on launch. Showing a paying
+          user an upsell for their own plan is worse than showing them nothing for a moment.
+        */}
+        {!resolved ? (
+          <Card>
+            <View className="gap-1">
+              <CardTitle>Your plan</CardTitle>
+              <CardCaption>Checking…</CardCaption>
+            </View>
+          </Card>
+        ) : premium ? (
           <Card tone="accent">
             <View className="gap-1">
               <CardTitle>Ittekimasu Pro</CardTitle>

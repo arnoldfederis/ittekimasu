@@ -5,6 +5,7 @@ import { Alert, Linking, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { ListRow } from "@/components/list-row";
 import { useOfflineBannerClearance } from "@/components/offline-banner";
+import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useIsOnline } from "@/lib/network";
@@ -14,18 +15,15 @@ import { toast } from "@/lib/toast";
 /** Apple's own subscription management screen. There is no in-app way to cancel. */
 const MANAGE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
 
-/**
- * Hosted, not in-app: App Store Connect needs a public privacy policy URL to submit at all,
- * so the pages have to exist on the web regardless. BOTH MUST BE LIVE BEFORE SUBMISSION —
- * a 404 here is a review rejection.
- */
-const LEGAL_BASE_URL = "https://ittekimasu.app";
+// PRIVACY_URL and TERMS_URL moved to constants/legal.ts — App Review reaches them from the
+// paywall and the sign-in screen too, and three copies of the base URL is three chances for
+// one of them to 404 on the screen a reviewer happens to be looking at.
 
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const online = useIsOnline();
   const { signOut, forgetOnboarded } = useAuth();
-  const { restore } = usePurchases();
+  const { restore, hasPremium } = usePurchases();
   const [busy, setBusy] = useState(false);
   const bannerClearance = useOfflineBannerClearance();
 
@@ -129,11 +127,18 @@ export default function SettingsScreen() {
               subtitle="Opens the App Store"
               title="Manage subscription"
             />
-            {/* Required by App Store review guideline 3.1.1. */}
+            {/*
+              Required by App Store review guideline 3.1.1 — but only useful when there is
+              something to restore. Offered to an active subscriber it can only ever answer
+              "you already have this", which reads as though something might be wrong.
+              Disabled rather than hidden: 3.1.1 wants the path to be findable, and a
+              subscriber who lapses sees it come back without hunting for it.
+            */}
             <ListRow
-              disabled={busy}
+              disabled={busy || hasPremium}
               icon="arrow.clockwise"
               onPress={restorePurchases}
+              subtitle={hasPremium ? "Your subscription is active" : undefined}
               title="Restore purchases"
             />
           </Section>
@@ -177,13 +182,13 @@ export default function SettingsScreen() {
           <Section title="ABOUT">
             <ListRow
               icon="hand.raised"
-              onPress={() => Linking.openURL(`${LEGAL_BASE_URL}/privacy`)}
+              onPress={() => Linking.openURL(PRIVACY_URL)}
               showChevron
               title="Privacy policy"
             />
             <ListRow
               icon="doc.text"
-              onPress={() => Linking.openURL(`${LEGAL_BASE_URL}/terms`)}
+              onPress={() => Linking.openURL(TERMS_URL)}
               showChevron
               title="Terms of use"
             />

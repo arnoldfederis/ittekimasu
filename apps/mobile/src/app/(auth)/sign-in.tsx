@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Platform,
   ScrollView,
   Text,
@@ -11,6 +12,7 @@ import {
 import { BrandBackdrop } from "@/components/brand-backdrop";
 import { Button } from "@/components/button";
 import { GoogleLogo } from "@/components/google-logo";
+import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { useIsDark, useThemeColors } from "@/constants/theme";
 import {
   SignInCancelledError,
@@ -140,8 +142,29 @@ export default function SignInScreen() {
           />
         </View>
 
+        {/*
+          Tappable, not the flat sentence this used to be. Naming a Terms of Service the
+          reader cannot open is the kind of thing an App Review tester tries first — and
+          on the one screen that gates the whole app.
+        */}
         <Text className="text-center text-caption text-ink-subtle">
-          By continuing you agree to our Terms of Service and Privacy Policy.
+          By continuing you agree to our{" "}
+          <Text
+            accessibilityRole="link"
+            className="underline"
+            onPress={() => Linking.openURL(TERMS_URL)}
+          >
+            Terms of Service
+          </Text>{" "}
+          and{" "}
+          <Text
+            accessibilityRole="link"
+            className="underline"
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+          >
+            Privacy Policy
+          </Text>
+          .
         </Text>
       </ScrollView>
     </View>

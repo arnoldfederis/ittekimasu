@@ -25,5 +25,16 @@ public record RevenueCatEventRequest(
       @JsonProperty("original_app_user_id") String originalAppUserId,
       @JsonProperty("product_id") String productId,
       @JsonProperty("entitlement_ids") List<String> entitlementIds,
-      @JsonProperty("expiration_at_ms") Long expirationAtMs) {}
+      @JsonProperty("expiration_at_ms") Long expirationAtMs,
+      /*
+       * TRANSFER events carry NO app_user_id and NO entitlement_ids — the two ids involved
+       * arrive as these arrays instead. Each holds the store's anonymous id ($RCAnonymousID:…)
+       * alongside the Firebase UID, so both are searched and the anonymous one simply matches
+       * nothing.
+       *
+       * Without these fields a transfer resolved to no user at all and was dropped, which is
+       * how a subscriber ends up premium in RevenueCat and free in our database.
+       */
+      @JsonProperty("transferred_from") List<String> transferredFrom,
+      @JsonProperty("transferred_to") List<String> transferredTo) {}
 }

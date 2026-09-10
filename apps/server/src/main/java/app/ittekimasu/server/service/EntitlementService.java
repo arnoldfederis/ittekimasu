@@ -81,6 +81,22 @@ public class EntitlementService {
       throw new BadRequestException("Webhook payload has no event.");
     }
 
+    /*
+     * TRANSFER moves a store subscription from one app_user_id to another. It is handled
+     * first and separately because it does not fit the shape every other event has: there
+     * is no app_user_id (so resolveUser finds nobody), no entitlement_ids, and TWO users to
+     * update rather than one.
+     *
+     * This happens in ordinary use, not just in testing — delete your account and sign in
+     * again, or restore onto a second account with the same Apple ID, and the subscription
+     * follows. Dropped, the new account is premium in RevenueCat and free here: every
+     * premium deck 402s while the app cheerfully shows them as unlocked.
+     */
+    if ("TRANSFER".equalsIgnoreCase(event.type())) {
+      handleTransfer(event);
+      return;
+    }
+
     User user = resolveUser(event);
     if (user == null) {
       // Not an error worth retrying: a TEST event from the dashboard carries a made-up id.
@@ -131,6 +147,70 @@ public class EntitlementService {
     entitlement.setLastEventType(type);
 
     entitlementRepository.save(entitlement);
+  }
+
+  /**
+   * Moves access between the two sides of a TRANSFER.
+   *
+   * <p>The receiving side is granted: RevenueCat only transfers a subscription that is
+   * currently active, and the alternative — waiting for the next RENEWAL to confirm it —
+   * leaves a paying user locked out for up to a month.
+   *
+   * <p>The losing side is revoked in the same transaction. Skipping that would leave an
+   * account premium on the strength of a subscription it no longer owns, and nothing later
+   * would ever correct it: RevenueCat sends this account no further events.
+   *
+   * <p>Ids that match no user are normal — every array carries the store's anonymous
+   * {@code $RCAnonymousID:…} alongside the Firebase UID.
+   */
+  private void handleTransfer(RevenueCatEventRequest.Event event) {
+    int revoked = applyTransferSide(event.transferredFrom(), false, event);
+    int granted = applyTransferSide(event.transferredTo(), true, event);
+
+    if (granted == 0) {
+      // Worth a warning rather than silence: someone has paid and we could not find them.
+      log.warn(
+          "RevenueCat TRANSFER {} granted nothing — no known user in transferred_to {}",
+          event.id(),
+          event.transferredTo());
+    } else {
+      log.info(
+          "RevenueCat TRANSFER {}: granted {}, revoked {}", event.id(), granted, revoked);
+    }
+  }
+
+  /** Applies one side of a transfer, and reports how many rows it actually touched. */
+  private int applyTransferSide(
+      java.util.List<String> appUserIds, boolean premium, RevenueCatEventRequest.Event event) {
+    if (appUserIds == null) return 0;
+
+    int touched = 0;
+    for (String appUserId : appUserIds) {
+      if (appUserId == null || appUserId.startsWith("$RCAnonymousID:")) continue;
+
+      User user = userRepository.findByFirebaseUid(appUserId).orElse(null);
+      if (user == null) continue;
+
+      Entitlement entitlement =
+          entitlementRepository
+              .findByUserId(user.getId())
+              .orElseGet(
+                  () -> {
+                    Entitlement fresh = new Entitlement();
+                    fresh.setUser(user);
+                    return fresh;
+                  });
+
+      entitlement.setPremium(premium);
+      entitlement.setLastEventType("TRANSFER");
+      // Expiry is display-only and this payload carries none. Leaving the old value would
+      // show a renewal date that belongs to the other account.
+      if (!premium) entitlement.setExpiresAt(null);
+
+      entitlementRepository.save(entitlement);
+      touched++;
+    }
+    return touched;
   }
 
   /**

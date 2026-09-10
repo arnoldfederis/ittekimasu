@@ -6,7 +6,7 @@ import { Button } from "@/components/button";
 import { Card, CardCaption, CardTitle } from "@/components/card";
 import { ScreenHeader } from "@/components/screen-header";
 import { TAB_BAR_CLEARANCE, useThemeColors } from "@/constants/theme";
-import type { CourseSummary, DueCardsResponse } from "@/lib/api";
+import { ApiError, type CourseSummary, type DueCardsResponse } from "@/lib/api";
 import { daysUntil } from "@/lib/checklist";
 import { useIsOnline } from "@/lib/network";
 import { usePurchases } from "@/lib/purchases";
@@ -152,11 +152,30 @@ export default function LearnScreen() {
 
         {unlocked.map((course) => {
           const result = sessionByCourse.get(course.id);
+          /*
+           * A 402 here is NOT a failure to reach the server — it is the server saying this
+           * deck is not unlocked for this account yet. It happens in the window between
+           * paying (RevenueCat says premium instantly, so the deck moves out of `locked`)
+           * and the webhook reaching our database. "Try again" is the wrong offer: retrying
+           * cannot help, and the retry flickered the card through "All caught up" on the way.
+           */
+          const activating =
+            result?.error instanceof ApiError && result.error.requiresPremium;
+
+          // Read as separate statements: chaining these inline narrows the query result
+          // union down to `never` on the second access.
+          const isPending = result?.isPending === true;
+          const isFetching = result?.isFetching === true;
+          const isError = result?.isError === true;
+
           return (
             <ActiveCourseCard
+              activating={activating}
               course={course}
-              failed={(result?.isError ?? false) && online}
+              failed={isError && !activating && online}
               key={course.id}
+              // Never claim "All caught up" off a request that has not answered yet.
+              loading={isPending || isFetching}
               onRetry={() => result?.refetch()}
               session={result?.data ?? null}
             />
@@ -209,12 +228,25 @@ function ActiveCourseCard({
   course,
   session,
   failed,
+  activating,
+  loading,
   onRetry,
 }: {
   course: CourseSummary;
   session: DueCardsResponse | null;
   /** This deck's session request failed. Without it the card claims "All caught up". */
   failed: boolean;
+  /**
+   * The server returned 402: paid for, but our database has not been told yet. Distinct
+   * from `failed`, because retrying is not the answer — waiting is.
+   */
+  activating: boolean;
+  /**
+   * The request has not answered yet. Without this, a card with no data falls through every
+   * branch below and lands on "All caught up" — so tapping "Try again" flashed a deck as
+   * finished mid-refetch, then back to failed.
+   */
+  loading: boolean;
   onRetry: () => void;
 }) {
   const dueCount = session?.cards.length ?? 0;
@@ -238,13 +270,17 @@ function ActiveCourseCard({
   // and a deck that looks finished when it never loaded at all.
   const buttonTitle = failed
     ? "Try again"
-    : dueCount > 0
-      ? `Review ${dueCount} card${dueCount === 1 ? "" : "s"}`
-      : limitReached
-        ? "Today's reviews are done"
-        : pacedOut
-          ? "Today's new cards are done"
-          : "All caught up";
+    : activating
+      ? "Unlocking…"
+      : loading && !session
+        ? "Loading…"
+        : dueCount > 0
+          ? `Review ${dueCount} card${dueCount === 1 ? "" : "s"}`
+          : limitReached
+            ? "Today's reviews are done"
+            : pacedOut
+              ? "Today's new cards are done"
+              : "All caught up";
 
   return (
     <Card>
@@ -283,8 +319,12 @@ function ActiveCourseCard({
                 : `${reviewed} of ${total} cards · ${dueCount} due today`}
         </Text>
 
+        {/*
+          "Unlocking…" and "Loading…" are both dead buttons on purpose: there is nothing to
+          open and nothing retrying would fix. Only `failed` offers an action.
+        */}
         <Button
-          disabled={!failed && dueCount === 0}
+          disabled={activating || loading || (!failed && dueCount === 0)}
           onPress={() =>
             failed ? onRetry() : router.push(`/review/${course.id}`)
           }

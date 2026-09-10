@@ -45,6 +45,16 @@ type PurchasesState = {
    * the webhook had its premium decks silently left out of "Cards learned".
    */
   hasPremium: boolean;
+  /**
+   * False until BOTH sources have answered for this launch.
+   *
+   * `hasPremium` starts false because `isPremium` starts false and the entitlement query
+   * starts null — and entitlement is deliberately excluded from the persisted cache, so it
+   * is a fresh request on every cold start. A subscriber therefore saw "Free plan · Upgrade"
+   * for the first second of every launch before it flipped to Pro. Screens that render a
+   * PLAN must wait for this; screens that merely unlock content need not.
+   */
+  resolved: boolean;
   offering: PurchasesOffering | null;
   monthly: PurchasesPackage | null;
   annual: PurchasesPackage | null;
@@ -83,9 +93,26 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
 
   // The server's answer, shared with anything else that asks. Signing out clears the cache,
   // so this can never describe the previous account.
-  const { data: entitlement = null, refetch: refetchEntitlement } = useQuery({
+  const {
+    data: entitlement = null,
+    refetch: refetchEntitlement,
+    isFetched: entitlementFetched,
+  } = useQuery({
     ...entitlementQuery(),
     enabled: Boolean(user),
+    /*
+     * Keep asking while RevenueCat says premium and our server does not.
+     *
+     * That gap is the webhook in flight. waitForServerEntitlement covers the first nine
+     * seconds of it, but if the webhook is slower than that the app used to sit in the gap
+     * indefinitely — SDK premium, server not, so every premium deck 402s and the learn tab
+     * offered "Try again" on a request that could not succeed. Polling closes it on its own
+     * the moment the webhook lands, with no tap from the user.
+     *
+     * Stops as soon as the two agree, so a settled subscriber pays nothing for this.
+     */
+    refetchInterval: (query) =>
+      isPremium && !query.state.data?.premium ? 5_000 : false,
   });
 
   // Configure once per app launch. Calling configure again on every auth change resets the
@@ -211,6 +238,10 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
       isPremium,
       entitlement,
       hasPremium: Boolean(entitlement?.premium) || isPremium,
+      // `ready` covers the SDK's logIn; `entitlementFetched` covers the server's answer.
+      // Signed out there is nothing to wait for, so the query never runs and `ready` alone
+      // decides.
+      resolved: ready && (!user || entitlementFetched),
       offering,
       monthly: offering?.monthly ?? null,
       annual: offering?.annual ?? null,
@@ -218,7 +249,17 @@ export function PurchasesProvider({ children }: { children: ReactNode }) {
       restore,
       refresh,
     }),
-    [ready, isPremium, entitlement, offering, purchase, restore, refresh],
+    [
+      ready,
+      isPremium,
+      entitlement,
+      entitlementFetched,
+      user,
+      offering,
+      purchase,
+      restore,
+      refresh,
+    ],
   );
 
   return <PurchasesContext value={value}>{children}</PurchasesContext>;

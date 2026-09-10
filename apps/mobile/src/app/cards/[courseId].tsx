@@ -18,8 +18,10 @@ import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
 import { api, type ReviewRating, type SeenCard } from "@/lib/api";
 import { daysUntil } from "@/lib/checklist";
+import { useDisplayPrefs } from "@/lib/display-prefs";
 import { useIsOnline } from "@/lib/network";
 import { queryKeys, seenCardsQuery, useInvalidateOnFocus } from "@/lib/queries";
+import { formatBackText } from "@/lib/romaji";
 import { toast } from "@/lib/toast";
 
 const RATINGS: {
@@ -87,6 +89,8 @@ export default function DeckCardsScreen() {
   const online = useIsOnline();
   const queryClient = useQueryClient();
   const bannerClearance = useOfflineBannerClearance();
+  // Settings ▸ Display owns this for the whole app; the browser has no control of its own.
+  const { showRomaji } = useDisplayPrefs();
 
   const [filter, setFilter] = useState<Filter>("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -230,7 +234,13 @@ export default function DeckCardsScreen() {
               {card.frontText}
               <Text className="text-ink-muted">
                 {"  "}
-                {card.backText}
+                {/*
+                  Transliterated, exactly as the review screen does it. This browser used to
+                  render backText raw, so a learner with romaji ON saw "otoko · man" while
+                  reviewing and "おとこ · man" here — the one screen where they go to check
+                  what they have learned showed them a script they had asked not to see.
+                */}
+                {formatBackText(card.backText, showRomaji)}
               </Text>
             </Text>
             <Text className="text-caption text-ink-subtle">

@@ -36,6 +36,7 @@ import {
   dismissAudioHint,
   getSelectedVoice,
   isSoundEnabled,
+  playsInSilentMode,
   setSoundEnabled,
   shouldShowAudioHint,
   speakReading,
@@ -131,6 +132,14 @@ export default function ReviewScreen() {
   const [sound, setSound] = useState(true);
   const [voice, setVoice] = useState<string | null>(null);
   const [audioHint, setAudioHint] = useState(false);
+  /**
+   * Whether Settings ▸ Voice has "Play even when silent" on.
+   *
+   * The hint below used to tell everyone to check the ring/silent switch. Once that
+   * preference exists the advice is wrong for anyone who has enabled it — they would go
+   * hunting for a switch that is already irrelevant.
+   */
+  const [playsWhenSilent, setPlaysWhenSilent] = useState(false);
   const displayPrefs = useDisplayPrefs();
   const scale = TEXT_SCALE_FACTOR[displayPrefs.textScale];
   /** The answer that can still be taken back, cleared once the next card is rated. */
@@ -144,6 +153,7 @@ export default function ReviewScreen() {
     isSoundEnabled().then(setSound);
     getSelectedVoice().then(setVoice);
     shouldShowAudioHint().then(setAudioHint);
+    playsInSilentMode().then(setPlaysWhenSilent);
     // Set the audio session on entering a session, not at launch: no reason to touch the
     // process-wide category until the app actually intends to make noise.
     applyAudioMode();
@@ -482,8 +492,9 @@ export default function ReviewScreen() {
             tintColor={colors.inkMuted}
           />
           <Text className="flex-1 text-caption text-ink-muted">
-            Readings are spoken aloud. If you hear nothing, check your phone
-            isn&apos;t on silent.
+            {playsWhenSilent
+              ? "Readings are spoken aloud. If you hear nothing, check your volume."
+              : "Readings are spoken aloud. If you hear nothing, check your phone isn't on silent, or turn on Play even when silent in Settings ▸ Voice."}
           </Text>
           <Image
             source="sf:xmark"

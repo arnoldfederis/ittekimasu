@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -13,6 +14,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BrandBackdrop } from "@/components/brand-backdrop";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
+import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { useThemeColors } from "@/constants/theme";
 import { isPurchaseCancelled, usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
@@ -213,11 +215,44 @@ export default function PaywallScreen() {
           title="Start 7-day free trial"
           variant="primary"
         />
+        {/*
+          App Review guideline 3.1.2 requires an auto-renewable subscription to state its
+          length, its price per period, and that it renews until cancelled — on the paywall
+          itself, not only in App Store Connect. "Cancel anytime" alone reads as a promise
+          rather than a disclosure, and a missing renewal statement is one of the most
+          common first-submission rejections there is.
+        */}
         <Text className="text-center text-caption text-ink-subtle">
           {chosen
-            ? `Then ${chosen.product.priceString} ${selected === "annual" ? "a year" : "a month"}. Cancel anytime.`
-            : "Cancel anytime."}
+            ? `7 days free, then ${chosen.product.priceString} ${selected === "annual" ? "a year" : "a month"}. Renews automatically until cancelled; cancel any time in your Apple Account settings.`
+            : "Renews automatically until cancelled."}
         </Text>
+
+        {/*
+          Functional links, not the plain sentence this used to be. 3.1.2 wants the Terms
+          of Use and the Privacy Policy reachable FROM the paywall, and a reviewer will
+          tap them.
+        */}
+        <View className="flex-row items-center justify-center gap-4">
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => Linking.openURL(TERMS_URL)}
+          >
+            <Text className="text-caption text-ink-subtle underline">
+              Terms of Use
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="link"
+            hitSlop={8}
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+          >
+            <Text className="text-caption text-ink-subtle underline">
+              Privacy Policy
+            </Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );

@@ -102,6 +102,8 @@ class EntitlementServiceIntegrationTest {
                 null,
                 "ittekimasu_monthly",
                 List.of(EntitlementService.PREMIUM_ENTITLEMENT_ID),
+                null,
+                null,
                 null));
 
     entitlementService.handleWebhookEvent(unknown);
@@ -122,6 +124,8 @@ class EntitlementServiceIntegrationTest {
                 null,
                 "some_other_product",
                 List.of("something_else"),
+                null,
+                null,
                 null));
 
     entitlementService.handleWebhookEvent(other);
@@ -138,6 +142,63 @@ class EntitlementServiceIntegrationTest {
     assertThat(entitlementService.isPremium(user.getId())).isTrue();
   }
 
+  /**
+   * A TRANSFER moves an active subscription from one app_user_id to another — which happens
+   * in ordinary use, not just in testing: delete your account and sign in again, or restore
+   * onto a second account under the same Apple ID.
+   *
+   * <p>The event carries NO app_user_id and NO entitlement_ids, only the two arrays. Before
+   * this was handled, it resolved to no user and was silently dropped, leaving the receiving
+   * account premium in RevenueCat and free here — so every premium deck answered 402 while
+   * the app showed them unlocked.
+   */
+  @Test
+  void aTransferMovesPremiumBetweenAccounts() {
+    User recipient = new User();
+    recipient.setFirebaseUid("entitlement-test-" + UUID.randomUUID());
+    recipient.setEmail("entitlement-recipient@ittekimasu.app");
+    recipient = userRepository.save(recipient);
+
+    // The original owner is premium.
+    entitlementService.handleWebhookEvent(event("INITIAL_PURCHASE", 1_800_000_000_000L));
+    assertThat(entitlementService.isPremium(user.getId())).isTrue();
+
+    entitlementService.handleWebhookEvent(transfer(user, recipient));
+
+    assertThat(entitlementService.isPremium(recipient.getId())).isTrue();
+    // And the losing side loses it: nothing later would correct this, because RevenueCat
+    // sends that account no further events about a subscription it no longer owns.
+    assertThat(entitlementService.isPremium(user.getId())).isFalse();
+  }
+
+  /** An anonymous id on either side matches no user and must not break the transfer. */
+  @Test
+  void aTransferIgnoresAnonymousIdsAndUnknownUsers() {
+    User recipient = new User();
+    recipient.setFirebaseUid("entitlement-test-" + UUID.randomUUID());
+    recipient.setEmail("entitlement-recipient2@ittekimasu.app");
+    recipient = userRepository.save(recipient);
+
+    RevenueCatEventRequest request =
+        new RevenueCatEventRequest(
+            "1.0",
+            new RevenueCatEventRequest.Event(
+                "evt-" + UUID.randomUUID(),
+                "TRANSFER",
+                null,
+                null,
+                null,
+                null,
+                null,
+                List.of("$RCAnonymousID:f54e230df72f42bb9084dffa5d094c2e", "never-seen-uid"),
+                List.of("$RCAnonymousID:506c7192400a4f87b4ca631a64777dac",
+                    recipient.getFirebaseUid())));
+
+    entitlementService.handleWebhookEvent(request);
+
+    assertThat(entitlementService.isPremium(recipient.getId())).isTrue();
+  }
+
   private RevenueCatEventRequest event(String type, Long expirationAtMs) {
     return new RevenueCatEventRequest(
         "1.0",
@@ -148,6 +209,24 @@ class EntitlementServiceIntegrationTest {
             user.getFirebaseUid(),
             "ittekimasu_monthly",
             List.of(EntitlementService.PREMIUM_ENTITLEMENT_ID),
-            expirationAtMs));
+            expirationAtMs,
+            null,
+            null));
+  }
+
+  /** Shaped like the real payload: no app_user_id, no entitlement_ids, two arrays. */
+  private RevenueCatEventRequest transfer(User from, User to) {
+    return new RevenueCatEventRequest(
+        "1.0",
+        new RevenueCatEventRequest.Event(
+            "evt-" + UUID.randomUUID(),
+            "TRANSFER",
+            null,
+            null,
+            null,
+            null,
+            null,
+            List.of("$RCAnonymousID:" + UUID.randomUUID(), from.getFirebaseUid()),
+            List.of("$RCAnonymousID:" + UUID.randomUUID(), to.getFirebaseUid())));
   }
 }
