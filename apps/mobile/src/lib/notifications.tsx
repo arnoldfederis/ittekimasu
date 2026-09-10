@@ -126,6 +126,17 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     OneSignal.initialize(APP_ID);
 
     /*
+     * OneSignal links OneSignalLocation.xcframework whether or not the app uses it, which
+     * is why Apple's static analysis raised ITMS-90683 asking for a location purpose
+     * string. app.config.ts supplies one; this makes it true — location collection is off,
+     * so the string can never be shown because nothing ever asks.
+     *
+     * Nothing in this app needs where anyone is. The reminder is scheduled from
+     * users.reminder_hour and reminder_timezone, both of which the user chose.
+     */
+    OneSignal.Location.setShared(false);
+
+    /*
      * Tapping the reminder lands on the learn tab, not wherever the app happened to be.
      * The whole point of the notification is "go study" — dumping someone on the dashboard
      * makes them navigate there themselves, which is a step too many for a nudge.

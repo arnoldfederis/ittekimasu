@@ -77,6 +77,21 @@ const config: ExpoConfig = {
     usesAppleSignIn: true,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      /*
+       * Required by Apple's static analysis, not by anything this app does — ITMS-90683 on
+       * build 4.
+       *
+       * react-native-onesignal links OneSignalLocation.xcframework unconditionally, so the
+       * binary references CoreLocation even though no code path here calls it. Apple's
+       * check sees the reference and demands a purpose string regardless of use.
+       *
+       * `OneSignal.Location.setShared(false)` in lib/notifications.tsx turns the SDK's
+       * location collection off, so this string can never actually be presented: nothing
+       * ever requests the permission. It is also NOT shown on the App Store listing —
+       * that comes from the privacy questionnaire, where location is answered No.
+       */
+      NSLocationWhenInUseUsageDescription:
+        "Ittekimasu does not use your location. This entry exists only because the notification library bundled with the app contains location features, which the app disables at startup.",
     },
   },
   android: {
