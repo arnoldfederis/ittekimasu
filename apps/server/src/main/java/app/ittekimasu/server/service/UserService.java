@@ -6,6 +6,7 @@ import app.ittekimasu.server.repository.UserRepository;
 import app.ittekimasu.server.security.FirebasePrincipal;
 import com.google.firebase.auth.FirebaseAuth;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,10 +35,32 @@ public class UserService {
    */
   @Transactional
   public User findOrCreate(FirebasePrincipal principal) {
+    Optional<User> existing = userRepository.findByFirebaseUid(principal.uid());
+    if (existing.isPresent()) {
+      return backfill(existing.get(), principal);
+    }
+
+    /*
+     * Not `save()`. Signing in fires several authenticated requests at once — the auth
+     * provider's GET /users/me, the learn tab, the notifications provider — and on a
+     * brand-new account every one of them lands here concurrently. All of them read "no row
+     * yet", all of them insert, and the losers died on uc_users_firebase_uid: a 500 on the
+     * first screen after sign-in, on the one request path every user takes.
+     *
+     * The upsert makes the insert a no-op for whoever loses, so the re-read below finds the
+     * row either way — ours or the winner's.
+     */
+    userRepository.insertIfAbsent(principal.uid(), principal.email(), principal.name());
+
     return userRepository
         .findByFirebaseUid(principal.uid())
-        .map(existing -> backfill(existing, principal))
-        .orElseGet(() -> create(principal));
+        .map(found -> backfill(found, principal))
+        // Unreachable barring a deleted-between-statements race, but an explicit failure
+        // beats an Optional.get() that reads like it cannot happen.
+        .orElseThrow(
+            () ->
+                new IllegalStateException(
+                    "User row for %s vanished between insert and read".formatted(principal.uid())));
   }
 
   @Transactional(readOnly = true)
@@ -137,13 +160,6 @@ public class UserService {
     }
   }
 
-  private User create(FirebasePrincipal principal) {
-    User user = new User();
-    user.setFirebaseUid(principal.uid());
-    user.setEmail(principal.email());
-    user.setDisplayName(principal.name());
-    return userRepository.save(user);
-  }
 
   /**
    * Fills in fields the token now carries but the row is missing. Never overwrites a value the
