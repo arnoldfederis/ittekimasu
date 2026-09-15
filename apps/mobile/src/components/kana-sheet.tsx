@@ -34,7 +34,7 @@ const BASE_GLYPH_POINTS = 120;
 const DIGRAPH_SIZE_RATIO = 0.62;
 
 type KanaSheetProps = {
-  /** Index into KANA_ORDER, or null when the sheet is closed. */
+  /** Index into `order`, or null when the sheet is closed. */
   index: number | null;
   script: KanaScript;
   onClose: () => void;
@@ -42,6 +42,16 @@ type KanaSheetProps = {
   showRomaji: boolean;
   /** Multiplier from the shared text-size setting. */
   scale: number;
+  /**
+   * The sequence to swipe through. Defaults to reading order — the chart passes a shuffled
+   * copy for flashcard mode.
+   *
+   * Passed in rather than derived from a boolean so the order is decided ONCE, when the
+   * sheet opens. Reshuffling on a re-render would move the ground under a swipe.
+   */
+  order?: KanaEntry[];
+  /** Changes the caption and the header, since a shuffled swipe is a different promise. */
+  shuffled?: boolean;
 };
 
 /**
@@ -62,6 +72,8 @@ export function KanaSheet({
   onClose,
   showRomaji,
   scale,
+  order = KANA_ORDER,
+  shuffled = false,
 }: KanaSheetProps) {
   const colors = useThemeColors();
   const { width: windowWidth } = useWindowDimensions();
@@ -206,6 +218,7 @@ export function KanaSheet({
           {/* No progress counter on purpose: nothing here is a session to get through. */}
           <Text className="text-callout text-ink-muted">
             {script === "hiragana" ? "Hiragana" : "Katakana"}
+            {shuffled ? " · Shuffled" : ""}
           </Text>
 
           {/*
@@ -223,7 +236,7 @@ export function KanaSheet({
         </View>
 
         <FlatList
-          data={KANA_ORDER}
+          data={order}
           getItemLayout={(_, i) => ({
             length: pageWidth,
             offset: pageWidth * i,
@@ -247,7 +260,7 @@ export function KanaSheet({
         />
 
         <Text className="px-6 pb-8 text-center text-caption text-ink-subtle">
-          Swipe for the next one.
+          {shuffled ? "Swipe for a random one." : "Swipe for the next one."}
         </Text>
       </View>
     </Modal>

@@ -276,3 +276,30 @@ export function glyphOf(entry: KanaEntry, script: KanaScript): string {
 export function indexOfKana(entry: KanaEntry): number {
   return KANA_ORDER.indexOf(entry);
 }
+
+/**
+ * The whole syllabary in random order, for the shuffle mode on the chart.
+ *
+ * Reading order is what makes the chart a chart — あいうえお is a shape you memorise, and
+ * swiping through it reinforces that shape. Which is exactly why it is useless for testing
+ * yourself: by the third row you are reciting the sequence, not reading the character.
+ * Shuffling breaks that, and nothing else about the sheet changes.
+ *
+ * Fisher-Yates over a copy. A `sort(() => Math.random() - 0.5)` is not a shuffle — the
+ * comparator is inconsistent, so the result is biased and V8's sort may not even terminate
+ * sensibly on it.
+ */
+export function shuffledKanaOrder(): KanaEntry[] {
+  const shuffled = [...KANA_ORDER];
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    const a = shuffled[i];
+    const b = shuffled[j];
+    // Indices are in range by construction; the guard is for noUncheckedIndexedAccess.
+    if (a !== undefined && b !== undefined) {
+      shuffled[i] = b;
+      shuffled[j] = a;
+    }
+  }
+  return shuffled;
+}

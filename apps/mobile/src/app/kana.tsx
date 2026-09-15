@@ -1,3 +1,4 @@
+import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
@@ -9,8 +10,11 @@ import {
   KANA_ORDER,
   KANA_SECTIONS,
   type KanaCell,
+  type KanaEntry,
   type KanaScript,
+  shuffledKanaOrder,
 } from "@/constants/kana";
+import { useThemeColors } from "@/constants/theme";
 import { TEXT_SCALE_FACTOR, useDisplayPrefs } from "@/lib/display-prefs";
 
 const SCRIPTS: { key: KanaScript; label: string }[] = [
@@ -31,9 +35,33 @@ const SCRIPTS: { key: KanaScript; label: string }[] = [
  */
 export default function KanaScreen() {
   const bannerClearance = useOfflineBannerClearance();
+  const colors = useThemeColors();
   const [script, setScript] = useState<KanaScript>("hiragana");
   const [openIndex, setOpenIndex] = useState<number | null>(null);
   const prefs = useDisplayPrefs();
+
+  /*
+   * Flashcard mode: the same sheet, over a shuffled sequence.
+   *
+   * Held as the ORDER rather than a boolean, and regenerated only when shuffle is tapped.
+   * Deriving it from a flag would reshuffle on every re-render — a text-size change mid-swipe
+   * would silently deal a new deck under the thumb.
+   *
+   * Null means reading order, which is what tapping a cell in the chart gives you. The two
+   * entry points are deliberately separate: tapping あ means "show me あ", and that should
+   * never be answered with a random character.
+   */
+  const [shuffledOrder, setShuffledOrder] = useState<KanaEntry[] | null>(null);
+
+  function startShuffle() {
+    setShuffledOrder(shuffledKanaOrder());
+    setOpenIndex(0);
+  }
+
+  function openAt(cell: KanaEntry) {
+    setShuffledOrder(null);
+    setOpenIndex(KANA_ORDER.indexOf(cell));
+  }
 
   function renderCell(cell: KanaCell, key: string) {
     // An empty slot in the grid — や has no い column. Rendered as a hole rather than
@@ -49,7 +77,7 @@ export default function KanaScreen() {
         accessibilityRole="button"
         className="min-h-16 flex-1 items-center justify-center gap-0.5 rounded-button bg-surface py-2 active:bg-surface-sunken"
         key={key}
-        onPress={() => setOpenIndex(KANA_ORDER.indexOf(cell))}
+        onPress={() => openAt(cell)}
         style={{ borderCurve: "continuous" }}
       >
         <Text className="text-ink" style={{ fontSize: 26, lineHeight: 34 }}>
@@ -74,7 +102,34 @@ export default function KanaScreen() {
         preference pair for the whole app, so they live in Settings ▸ Display where they can
         be previewed — not duplicated on every screen they happen to affect.
       */}
-      <Stack.Screen options={{ headerShown: true, title: "Kana" }} />
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: "Kana",
+          /*
+            Shuffle lives up here, not in the sheet: it decides what the sheet IS before it
+            opens, and a control that reshuffles mid-swipe would move the ground under the
+            thumb. It is also the one thing on this screen that is not "look something up",
+            which is why it gets a button of its own rather than a mode switch over the chart.
+          */
+          headerRight: () => (
+            <Pressable
+              accessibilityHint="Swipes through every character in random order"
+              accessibilityLabel="Shuffle"
+              accessibilityRole="button"
+              className="min-h-11 flex-row items-center gap-1.5 px-2 active:opacity-60"
+              onPress={startShuffle}
+            >
+              <Image
+                source="sf:shuffle"
+                style={{ width: 16, height: 16 }}
+                tintColor={colors.primary}
+              />
+              <Text className="text-callout text-primary">Shuffle</Text>
+            </Pressable>
+          ),
+        }}
+      />
 
       <ScrollView
         className="flex-1 bg-canvas"
@@ -142,9 +197,11 @@ export default function KanaScreen() {
       <KanaSheet
         index={openIndex}
         onClose={() => setOpenIndex(null)}
+        order={shuffledOrder ?? KANA_ORDER}
         scale={TEXT_SCALE_FACTOR[prefs.textScale]}
         script={script}
         showRomaji={prefs.showRomaji}
+        shuffled={shuffledOrder !== null}
       />
     </>
   );
