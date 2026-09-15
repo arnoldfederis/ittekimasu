@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
-import { Alert, Linking, ScrollView, Text, View } from "react-native";
+import { Alert, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { ListRow } from "@/components/list-row";
 import { useOfflineBannerClearance } from "@/components/offline-banner";
@@ -9,6 +9,7 @@ import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useIsOnline } from "@/lib/network";
+import { openUrl } from "@/lib/open-url";
 import { usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
@@ -122,7 +123,7 @@ export default function SettingsScreen() {
           <Section title="SUBSCRIPTION">
             <ListRow
               icon="creditcard"
-              onPress={() => Linking.openURL(MANAGE_SUBSCRIPTIONS_URL)}
+              onPress={() => openUrl(MANAGE_SUBSCRIPTIONS_URL)}
               showChevron
               subtitle="Opens the App Store"
               title="Manage subscription"
@@ -182,13 +183,13 @@ export default function SettingsScreen() {
           <Section title="ABOUT">
             <ListRow
               icon="hand.raised"
-              onPress={() => Linking.openURL(PRIVACY_URL)}
+              onPress={() => openUrl(PRIVACY_URL)}
               showChevron
               title="Privacy policy"
             />
             <ListRow
               icon="doc.text"
-              onPress={() => Linking.openURL(TERMS_URL)}
+              onPress={() => openUrl(TERMS_URL)}
               showChevron
               title="Terms of use"
             />

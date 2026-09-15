@@ -3,7 +3,6 @@ import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   Pressable,
   ScrollView,
   Text,
@@ -16,6 +15,7 @@ import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { useThemeColors } from "@/constants/theme";
+import { openUrl } from "@/lib/open-url";
 import { isPurchaseCancelled, usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
@@ -237,7 +237,7 @@ export default function PaywallScreen() {
           <Pressable
             accessibilityRole="link"
             hitSlop={8}
-            onPress={() => Linking.openURL(TERMS_URL)}
+            onPress={() => openUrl(TERMS_URL)}
           >
             <Text className="text-caption text-ink-subtle underline">
               Terms of Use
@@ -246,7 +246,7 @@ export default function PaywallScreen() {
           <Pressable
             accessibilityRole="link"
             hitSlop={8}
-            onPress={() => Linking.openURL(PRIVACY_URL)}
+            onPress={() => openUrl(PRIVACY_URL)}
           >
             <Text className="text-caption text-ink-subtle underline">
               Privacy Policy

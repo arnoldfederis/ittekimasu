@@ -2,18 +2,12 @@ import { Image } from "expo-image";
 import { Stack } from "expo-router";
 import type * as Speech from "expo-speech";
 import { useEffect, useState } from "react";
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  Switch,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
 import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
+import { openAppSettings } from "@/lib/open-url";
 import {
   applyAudioMode,
   getSelectedVoice,
@@ -151,7 +145,7 @@ export default function VoiceScreen() {
             </Text>
             <View className="pt-3">
               <Button
-                onPress={() => Linking.openSettings()}
+                onPress={() => openAppSettings()}
                 title="Open Settings"
                 variant="secondary"
               />

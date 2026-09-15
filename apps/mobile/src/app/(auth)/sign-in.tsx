@@ -3,7 +3,6 @@ import { Image } from "expo-image";
 import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Linking,
   Platform,
   ScrollView,
   Text,
@@ -14,6 +13,7 @@ import { Button } from "@/components/button";
 import { GoogleLogo } from "@/components/google-logo";
 import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { useIsDark, useThemeColors } from "@/constants/theme";
+import { openUrl } from "@/lib/open-url";
 import {
   SignInCancelledError,
   signInWithApple,
@@ -152,7 +152,7 @@ export default function SignInScreen() {
           <Text
             accessibilityRole="link"
             className="underline"
-            onPress={() => Linking.openURL(TERMS_URL)}
+            onPress={() => openUrl(TERMS_URL)}
           >
             Terms of Service
           </Text>{" "}
@@ -160,7 +160,7 @@ export default function SignInScreen() {
           <Text
             accessibilityRole="link"
             className="underline"
-            onPress={() => Linking.openURL(PRIVACY_URL)}
+            onPress={() => openUrl(PRIVACY_URL)}
           >
             Privacy Policy
           </Text>

@@ -84,6 +84,28 @@ public class OneSignalClient {
               .body(String.class);
 
       String payload = response == null ? "" : response;
+
+      /*
+       * `invalid_aliases` is an expected outcome, not a fault, and must not be logged as
+       * one. It means OneSignal has no subscription for that external id — the person
+       * uninstalled, or signed in under a different account so their device re-registered
+       * under a new Firebase UID and the old one was left behind.
+       *
+       * Either way it recurs EVERY DAY for as long as that row keeps a reminder hour, so
+       * logging it at ERROR would fill the log with a permanent false alarm and train us to
+       * stop reading it. The reminder hour is deliberately left alone: reinstalling and
+       * signing in re-registers the device, and the reminder should simply start working
+       * again rather than needing to be set up a second time.
+       */
+      if (payload.contains("\"invalid_aliases\"")) {
+        log.info(
+            "OneSignal has no subscription for some of the {} recipients in this batch —"
+                + " uninstalled, or re-registered under a different account: {}",
+            externalIds.size(),
+            payload);
+        return false;
+      }
+
       if (payload.contains("\"errors\"")) {
         log.error(
             "OneSignal accepted the request but reported errors for {} recipients: {}",

@@ -1,13 +1,6 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
-import {
-  Linking,
-  Pressable,
-  ScrollView,
-  Switch,
-  Text,
-  View,
-} from "react-native";
+import { Pressable, ScrollView, Switch, Text, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
 import { Button } from "@/components/button";
 import { Card } from "@/components/card";
@@ -15,6 +8,7 @@ import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
 import { useIsOnline } from "@/lib/network";
 import { formatReminderHour, useNotifications } from "@/lib/notifications";
+import { openAppSettings } from "@/lib/open-url";
 
 /**
  * Every hour of the day.
@@ -116,7 +110,7 @@ export default function ReminderTimeScreen() {
             </Text>
             <View className="pt-3">
               <Button
-                onPress={() => Linking.openSettings()}
+                onPress={() => openAppSettings()}
                 title="Open Settings"
                 variant="secondary"
               />
