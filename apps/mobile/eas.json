@@ -50,7 +50,8 @@
   "submit": {
     "production": {
       "ios": {
-        "bundleIdentifier": "com.arnoldfederis.ittekimasu"
+        "bundleIdentifier": "com.arnoldfederis.ittekimasu",
+        "ascAppId": "6803396159"
       },
       "android": {
         "track": "internal"
