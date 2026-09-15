@@ -1,5 +1,5 @@
-import { config as loadEnv } from "dotenv";
 import path from "node:path";
+import { config as loadEnv } from "dotenv";
 import type { ExpoConfig } from "expo/config";
 
 /**
@@ -109,6 +109,10 @@ const config: ExpoConfig = {
     predictiveBackGestureEnabled: false,
   },
   plugins: [
+    "expo-audio",
+    "expo-font",
+    "expo-image",
+    "expo-web-browser",
     "expo-router",
     "expo-apple-authentication",
     [
@@ -132,7 +136,10 @@ const config: ExpoConfig = {
       // Adds the iOS Notification Service Extension and the entitlements OneSignal needs.
       // Changing `mode` requires a prebuild and a rebuild, not just a Metro restart.
       "onesignal-expo-plugin",
-      { mode: process.env.APP_ENV === "production" ? "production" : "development" },
+      {
+        mode:
+          process.env.APP_ENV === "production" ? "production" : "development",
+      },
     ],
     [
       "expo-splash-screen",
