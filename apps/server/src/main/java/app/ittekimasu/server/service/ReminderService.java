@@ -84,10 +84,25 @@ public class ReminderService {
    * </ul>
    */
   private boolean isWorthReminding(User user) {
+    return suppressionReason(user) == null;
+  }
+
+  /**
+   * Why this user is not being reminded, or null when they are.
+   *
+   * <p>Split out so the tick can report WHICH rule fired. "0 worth reminding" is true but
+   * useless on its own — "already studied today" is the system working and "nothing due" is
+   * often the pacing doing its job, yet both look identical from the outside and neither is
+   * a fault.
+   */
+  private String suppressionReason(User user) {
     if (LocalDate.now(ReviewService.APP_ZONE).equals(user.getLastStudiedOn())) {
-      return false;
+      return "already studied today";
     }
-    return reviewService.hasWorkAvailable(user.getId());
+    if (!reviewService.hasWorkAvailable(user.getId())) {
+      return "no cards due and today's new-card intake is spent";
+    }
+    return null;
   }
 
   /**
@@ -134,11 +149,19 @@ public class ReminderService {
        *   due 0 with atTheirHour>0→ suppressed by isWorthReminding: already studied today,
        *                             or every card is scheduled ahead
        */
+      // Name the rule that fired for each, so "0 worth reminding" is not the end of the
+      // trail. At most a handful of users are ever at their hour on one tick.
+      List<String> reasons =
+          atTheirHour.stream()
+              .map(user -> "%s: %s".formatted(user.getFirebaseUid(), suppressionReason(user)))
+              .toList();
+
       log.info(
           "Reminder tick: nothing sent — {} with a reminder set, {} at their hour, 0 worth"
-              + " reminding",
+              + " reminding {}",
           candidates.size(),
-          atTheirHour.size());
+          atTheirHour.size(),
+          reasons);
       return;
     }
 
