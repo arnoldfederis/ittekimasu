@@ -65,7 +65,9 @@
     "format": "biome check --write src",
     "check-types": "tsc --noEmit",
     "pre:push": "biome check src && tsc --noEmit",
-    "icons": "bun scripts/generate-brand-assets.mjs"
+    "icons": "bun scripts/generate-brand-assets.mjs",
+    "kana-strokes": "bun scripts/generate-kana-strokes.mjs",
+    "stroke-font": "bun scripts/generate-stroke-font.mjs"
   },
   "private": true
 }

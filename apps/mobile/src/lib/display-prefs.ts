@@ -1,16 +1,39 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useCallback, useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
- * How cards and the kana chart are DISPLAYED. Device-only: these change nothing about
- * scheduling, so sending them to the server would turn a toggle into a request.
+ * How the kana chart and the vocabulary cards are DISPLAYED. Device-only: these change
+ * nothing about scheduling, so sending them to the server would turn a toggle into a request.
  *
- * One text scale shared by the review card and the kana sheet rather than a separate setting
- * per screen. Someone who wants bigger Japanese wants it everywhere, and two half-remembered
- * size controls is how a settings screen starts.
+ * ## Two scopes, not one shared pair
+ *
+ * The kana chart and a JLPT card are read at different sizes for different reasons — a
+ * single glyph you are studying the shape of, against a word with a reading and a gloss
+ * underneath it. Sharing one scale meant sizing the chart also resized every card, and the
+ * setting ended up parked wherever it hurt least. They are separate now, each reachable from
+ * the screen it affects.
+ *
+ * Romaji only exists for cards. The kana chart always shows readings while you are browsing
+ * it — someone opening the chart cannot read kana yet, which is the entire reason they are
+ * there — and practice hides them by definition, since the reading IS the answer being
+ * tested. A preference for it would only ever have been a way to break one of those two.
+ *
+ * ## Why this is a store and not `useState` per caller
+ *
+ * It used to be a hook with its own state, which worked only because the one place that
+ * could change it was a screen you had to navigate to and back from — the remount did the
+ * refreshing. The settings now open as a sheet sitting ON TOP of the thing they change, so
+ * the screen underneath has to hear about it.
+ *
+ * `useSyncExternalStore` rather than a context provider: there is nothing to scope, and a
+ * provider in the root layout would put a re-render of the whole app behind a preference
+ * that only ever touches type.
  */
-const SCALE_KEY = "display.textScale";
-const ROMAJI_KEY = "kana.romaji";
+const KANA_SCALE_KEY = "display.kana.textScale";
+const KANA_STROKE_KEY = "display.kana.strokeOrder";
+const CARD_SCALE_KEY = "display.cards.textScale";
+const CARD_ROMAJI_KEY = "display.cards.romaji";
+const CARD_STROKE_KEY = "display.cards.strokeOrder";
 
 export type TextScale = "default" | "large" | "larger";
 
@@ -30,51 +53,146 @@ export const TEXT_SCALE_LABEL: Record<TextScale, string> = {
 
 export const TEXT_SCALES: TextScale[] = ["default", "large", "larger"];
 
-export type DisplayPrefs = {
-  textScale: TextScale;
-  /** Kana chart only. Off hides the reading in the chart and the sheet — a self-test. */
-  showRomaji: boolean;
-  setTextScale: (scale: TextScale) => void;
-  setShowRomaji: (show: boolean) => void;
+function isTextScale(value: string | null): value is TextScale {
+  return value !== null && value in TEXT_SCALE_FACTOR;
+}
+
+type Snapshot = {
+  kanaScale: TextScale;
+  cardScale: TextScale;
+  /** Cards only: rewrites the READING half of a back, `おとこ · man` into `otoko · man`. */
+  cardRomaji: boolean;
+  /*
+   * Stroke order, remembered.
+   *
+   * It began as component state and died with the screen — closing the sheet, or stepping
+   * out to the Learn tab and back, turned it off again. Someone who wants to see how a
+   * character is written wants that for the next one too, and for the next session; having
+   * to switch it on at every character is the round trip that got the toggle moved onto the
+   * card in the first place. Scoped like the rest: the chart and the vocabulary cards are
+   * different surfaces, and a learner may well want it on one and not the other.
+   */
+  kanaStroke: boolean;
+  cardStroke: boolean;
 };
 
-export function useDisplayPrefs(): DisplayPrefs {
-  const [textScale, setScale] = useState<TextScale>("default");
-  const [showRomaji, setRomaji] = useState(true);
+let snapshot: Snapshot = {
+  kanaScale: "default",
+  cardScale: "default",
+  cardRomaji: true,
+  kanaStroke: false,
+  cardStroke: false,
+};
 
-  useEffect(() => {
-    let cancelled = false;
+const listeners = new Set<() => void>();
+let hydrating: Promise<void> | null = null;
 
-    (async () => {
-      const [scale, romaji] = await AsyncStorage.multiGet([
-        SCALE_KEY,
-        ROMAJI_KEY,
+/**
+ * Replaced, never mutated: `useSyncExternalStore` compares the snapshot by identity and
+ * would skip the render if the same object came back with different fields.
+ */
+function commit(next: Partial<Snapshot>) {
+  snapshot = { ...snapshot, ...next };
+  for (const listener of listeners) listener();
+}
+
+/** Reads the stored values once per launch, on the first subscriber. */
+function hydrate() {
+  hydrating ??= (async () => {
+    const [kanaScale, cardScale, cardRomaji, kanaStroke, cardStroke] =
+      await AsyncStorage.multiGet([
+        KANA_SCALE_KEY,
+        CARD_SCALE_KEY,
+        CARD_ROMAJI_KEY,
+        KANA_STROKE_KEY,
+        CARD_STROKE_KEY,
       ]);
-      if (cancelled) return;
 
-      if (scale[1] && scale[1] in TEXT_SCALE_FACTOR) {
-        setScale(scale[1] as TextScale);
-      }
-      // Romaji defaults ON: someone opening the chart for the first time cannot read kana
-      // yet — that is why they are there — so hiding the readings by default would make the
-      // screen useless to exactly the person it is for.
-      if (romaji[1] === "false") setRomaji(false);
-    })();
+    commit({
+      ...(isTextScale(kanaScale[1]) ? { kanaScale: kanaScale[1] } : {}),
+      ...(isTextScale(cardScale[1]) ? { cardScale: cardScale[1] } : {}),
+      ...(cardRomaji[1] === "false" ? { cardRomaji: false } : {}),
+      ...(kanaStroke[1] === "true" ? { kanaStroke: true } : {}),
+      ...(cardStroke[1] === "true" ? { cardStroke: true } : {}),
+    });
+  })();
 
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  return hydrating;
+}
 
-  const setTextScale = useCallback((scale: TextScale) => {
-    setScale(scale);
-    AsyncStorage.setItem(SCALE_KEY, scale);
-  }, []);
+function subscribe(listener: () => void) {
+  listeners.add(listener);
+  hydrate();
+  return () => {
+    listeners.delete(listener);
+  };
+}
 
-  const setShowRomaji = useCallback((show: boolean) => {
-    setRomaji(show);
-    AsyncStorage.setItem(ROMAJI_KEY, show ? "true" : "false");
-  }, []);
+function getSnapshot() {
+  return snapshot;
+}
 
-  return { textScale, showRomaji, setTextScale, setShowRomaji };
+// Module-level so the identities are stable across renders and the objects returned by the
+// hooks can be rebuilt freely.
+function setKanaScale(scale: TextScale) {
+  commit({ kanaScale: scale });
+  AsyncStorage.setItem(KANA_SCALE_KEY, scale);
+}
+
+function setCardScale(scale: TextScale) {
+  commit({ cardScale: scale });
+  AsyncStorage.setItem(CARD_SCALE_KEY, scale);
+}
+
+function setCardRomaji(show: boolean) {
+  commit({ cardRomaji: show });
+  AsyncStorage.setItem(CARD_ROMAJI_KEY, show ? "true" : "false");
+}
+
+function setKanaStroke(on: boolean) {
+  commit({ kanaStroke: on });
+  AsyncStorage.setItem(KANA_STROKE_KEY, on ? "true" : "false");
+}
+
+function setCardStroke(on: boolean) {
+  commit({ cardStroke: on });
+  AsyncStorage.setItem(CARD_STROKE_KEY, on ? "true" : "false");
+}
+
+export type KanaDisplayPrefs = {
+  textScale: TextScale;
+  strokeOrder: boolean;
+  setTextScale: (scale: TextScale) => void;
+  setStrokeOrder: (on: boolean) => void;
+};
+
+export function useKanaDisplayPrefs(): KanaDisplayPrefs {
+  const current = useSyncExternalStore(subscribe, getSnapshot);
+  return {
+    textScale: current.kanaScale,
+    strokeOrder: current.kanaStroke,
+    setTextScale: setKanaScale,
+    setStrokeOrder: setKanaStroke,
+  };
+}
+
+export type CardDisplayPrefs = {
+  textScale: TextScale;
+  showRomaji: boolean;
+  strokeOrder: boolean;
+  setTextScale: (scale: TextScale) => void;
+  setShowRomaji: (show: boolean) => void;
+  setStrokeOrder: (on: boolean) => void;
+};
+
+export function useCardDisplayPrefs(): CardDisplayPrefs {
+  const current = useSyncExternalStore(subscribe, getSnapshot);
+  return {
+    textScale: current.cardScale,
+    showRomaji: current.cardRomaji,
+    strokeOrder: current.cardStroke,
+    setTextScale: setCardScale,
+    setShowRomaji: setCardRomaji,
+    setStrokeOrder: setCardStroke,
+  };
 }

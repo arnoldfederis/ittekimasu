@@ -13,7 +13,9 @@ import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/button";
 import { Card, CardCaption } from "@/components/card";
+import { DisplayPrefsSheet } from "@/components/display-prefs-sheet";
 import { SegmentedProgress } from "@/components/segmented-progress";
+import { StrokeText } from "@/components/stroke-text";
 import { useThemeColors } from "@/constants/theme";
 import {
   ApiError,
@@ -22,7 +24,7 @@ import {
   type DueCardsResponse,
   type ReviewRating,
 } from "@/lib/api";
-import { TEXT_SCALE_FACTOR, useDisplayPrefs } from "@/lib/display-prefs";
+import { TEXT_SCALE_FACTOR, useCardDisplayPrefs } from "@/lib/display-prefs";
 import { useNotifications } from "@/lib/notifications";
 import { dueQuery, queryKeys } from "@/lib/queries";
 import {
@@ -43,6 +45,7 @@ import {
   spokenTextOf,
   stopSpeaking,
 } from "@/lib/speech";
+import { strokeFontSize } from "@/lib/stroke-font";
 
 /**
  * The four ratings, in the order the buttons appear.
@@ -140,7 +143,17 @@ export default function ReviewScreen() {
    * hunting for a switch that is already irrelevant.
    */
   const [playsWhenSilent, setPlaysWhenSilent] = useState(false);
-  const displayPrefs = useDisplayPrefs();
+  const displayPrefs = useCardDisplayPrefs();
+  const [showDisplayPrefs, setShowDisplayPrefs] = useState(false);
+
+  /*
+   * Stroke order for the card's front, as on the kana sheet: a toggle on the thing itself,
+   * because "how is this written?" is a question you have while looking AT the word.
+   *
+   * Remembered in the display store, not held here — this screen is a modal, so component
+   * state died every time the session was closed.
+   */
+  const strokeOrder = displayPrefs.strokeOrder;
   const scale = TEXT_SCALE_FACTOR[displayPrefs.textScale];
   /** The answer that can still be taken back, cleared once the next card is rated. */
   const [lastAnswer, setLastAnswer] = useState<{
@@ -353,6 +366,18 @@ export default function ReviewScreen() {
 
   const header = (
     <View className="flex-row items-center justify-between px-4 pb-2">
+      {/*
+        Inside the header so it travels with it: this screen returns from several branches
+        (loading, failed, finished, the session itself) and the header is the one thing all
+        of them render. A Modal draws into its own hierarchy, so where it sits in the tree
+        costs nothing.
+      */}
+      <DisplayPrefsSheet
+        onClose={() => setShowDisplayPrefs(false)}
+        scope="cards"
+        visible={showDisplayPrefs}
+      />
+
       <Pressable
         accessibilityLabel="Close review"
         accessibilityRole="button"
@@ -368,10 +393,44 @@ export default function ReviewScreen() {
 
       <View className="flex-row items-center gap-3">
         {/*
-          No display control up here. Text size and romaji live in Settings ▸ Display, where
-          a change can be previewed against a card before it is committed to. A session
-          header is for the two things worth changing mid-session: the sound, and leaving.
+          Display settings ARE worth changing mid-session, and that is a reversal.
+          They used to live only in Settings ▸ Display, on the argument that a change should
+          be previewed against a card first. In practice the card is right here and the
+          setting was four taps and two screens away, so wanting bigger type mid-session
+          meant abandoning the session — the preview was worth less than the round trip cost.
+          The sheet opens OVER the card, which previews it better than the settings page can.
         */}
+        <View className="flex-row items-center">
+          <Pressable
+            accessibilityHint="Shows how the word is written, stroke by stroke"
+            accessibilityLabel="Stroke order"
+            accessibilityRole="button"
+            accessibilityState={{ selected: strokeOrder }}
+            className="h-10 w-10 items-center justify-center rounded-pill active:bg-surface-sunken"
+            onPress={() => displayPrefs.setStrokeOrder(!strokeOrder)}
+          >
+            <Image
+              source={strokeOrder ? "sf:hand.draw.fill" : "sf:hand.draw"}
+              style={{ width: 18, height: 18 }}
+              tintColor={strokeOrder ? colors.primary : colors.inkMuted}
+            />
+          </Pressable>
+
+          <Pressable
+            accessibilityHint="Text size and romaji readings"
+            accessibilityLabel="Display settings"
+            accessibilityRole="button"
+            className="h-10 w-10 items-center justify-center rounded-pill active:bg-surface-sunken"
+            onPress={() => setShowDisplayPrefs(true)}
+          >
+            <Image
+              source="sf:textformat.size"
+              style={{ width: 18, height: 18 }}
+              tintColor={colors.inkMuted}
+            />
+          </Pressable>
+        </View>
+
         <View className="flex-row items-center">
           <Pressable
             accessibilityLabel={
@@ -462,6 +521,22 @@ export default function ReviewScreen() {
         }
         reviewed={reviewed}
         reviewedToday={reviewedToday}
+        /*
+         * What is left in the deck AFTER the cards just answered.
+         *
+         * Derived rather than refetched: `session` is the snapshot taken when the screen
+         * opened, so its `newCardsRemainingToday` still reads ten after all ten have been
+         * met. The cards with `seen: false` ARE today's intake, so subtracting them from the
+         * deck's unseen count gives what tomorrow holds without another request.
+         *
+         * The end of a session is exactly when "why was that only ten cards?" occurs, and
+         * until now that question was answered only when the session had been empty to begin
+         * with.
+         */
+        stillToLearn={Math.max(
+          session.unseenCardCount - cards.filter((c) => !c.seen).length,
+          0,
+        )}
         streak={streak}
         wasEmpty={cards.length === 0}
       />
@@ -535,13 +610,31 @@ export default function ReviewScreen() {
             Sized from the type scale rather than the class, so the display setting multiplies
             it. The ratio to the back text below is preserved, which is what keeps the card
             looking like itself at every size.
+
+            Stroke order is drawn much larger than the plain word, and scrolls rather than
+            shrinking: the numbers stop being legible somewhere near 100pt, so fitting a long
+            word to the card width would render the one thing the toggle exists to show as
+            specks. Reading the word is not the job here — reading its strokes is.
           */}
-          <Text
-            className="text-center font-semibold text-ink"
-            style={{ fontSize: 34 * scale, lineHeight: 34 * scale * 1.2 }}
-          >
-            {card?.frontText}
-          </Text>
+          {strokeOrder ? (
+            <View
+              className="w-full"
+              style={{ height: strokeFontSize(scale) * 1.25 }}
+            >
+              <StrokeText
+                color={colors.ink}
+                size={strokeFontSize(scale)}
+                text={card?.frontText ?? ""}
+              />
+            </View>
+          ) : (
+            <Text
+              className="text-center font-semibold text-ink"
+              style={{ fontSize: 34 * scale, lineHeight: 34 * scale * 1.2 }}
+            >
+              {card?.frontText}
+            </Text>
+          )}
 
           {revealed ? (
             <Animated.View
@@ -723,6 +816,7 @@ function SessionComplete({
   limitReached,
   nextDueDate,
   pacedOut,
+  stillToLearn,
   onClose,
 }: {
   header: React.ReactNode;
@@ -737,6 +831,8 @@ function SessionComplete({
   nextDueDate: string | null;
   /** Today's intake of new cards is spent, but the deck still holds unseen ones. */
   pacedOut: boolean;
+  /** Cards in this deck not yet met, counting the ones just answered as met. */
+  stillToLearn: number;
   onClose: () => void;
 }) {
   const colors = useThemeColors();
@@ -757,7 +853,17 @@ function SessionComplete({
       : pacedOut
         ? "A fresh batch arrives tomorrow. Meeting a handful of new cards a day is what makes them stick — a hundred at once is cramming, and cramming fades."
         : `Every ${courseTitle} card is scheduled ahead${describeReturn(nextDueDate)}. Spacing them out is what makes them stick.`
-    : `${reviewed} ${reviewed === 1 ? "card" : "cards"} this session, ${reviewedToday} today. Every one is scheduled to come back at the right moment.`;
+    : /*
+       * A finished session has to account for its own length. Ten cards out of a deck of
+       * fifty-five looks like the deck withholding what was paid for unless the count of
+       * what is coming is right here — which is the moment the question gets asked, not the
+       * next time the learn tab happens to be open.
+       */
+      `${reviewed} ${reviewed === 1 ? "card" : "cards"} this session, ${reviewedToday} today. Every one is scheduled to come back at the right moment.${
+        stillToLearn > 0
+          ? ` ${stillToLearn} more in this deck are waiting — a few new ones a day is what makes them stick.`
+          : ""
+      }`;
 
   return (
     <View className="flex-1 bg-canvas" style={{ paddingTop: insetTop }}>

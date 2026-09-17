@@ -18,7 +18,7 @@ import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { useThemeColors } from "@/constants/theme";
 import { api, type ReviewRating, type SeenCard } from "@/lib/api";
 import { daysUntil } from "@/lib/checklist";
-import { useDisplayPrefs } from "@/lib/display-prefs";
+import { useCardDisplayPrefs } from "@/lib/display-prefs";
 import { useIsOnline } from "@/lib/network";
 import { queryKeys, seenCardsQuery, useInvalidateOnFocus } from "@/lib/queries";
 import { formatBackText } from "@/lib/romaji";
@@ -90,7 +90,7 @@ export default function DeckCardsScreen() {
   const queryClient = useQueryClient();
   const bannerClearance = useOfflineBannerClearance();
   // Settings ▸ Display owns this for the whole app; the browser has no control of its own.
-  const { showRomaji } = useDisplayPrefs();
+  const { showRomaji } = useCardDisplayPrefs();
 
   const [filter, setFilter] = useState<Filter>("ALL");
   const [expanded, setExpanded] = useState<string | null>(null);

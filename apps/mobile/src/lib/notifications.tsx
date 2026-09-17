@@ -71,6 +71,33 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
     meta: { errorMessage: "Couldn't save your reminder time." },
   });
 
+  /*
+   * The same PATCH, sent because the PHONE moved rather than because the user chose
+   * anything — so it is silent.
+   *
+   * `reminder_timezone` used to be written once, when the hour was picked, and never again.
+   * The server computes the local hour from that stored zone, so a reminder set at 20:00 in
+   * Manila went on firing at Manila's 20:00 forever — 21:00 once its owner landed in Tokyo,
+   * and 04:00 for anyone who set it up in California. That is not an edge case in an app
+   * whose entire premise is that you are about to move to Japan: it is the journey, and the
+   * reminder broke at exactly the point the habit was worth keeping.
+   *
+   * Silent because nobody asked for it and there is nothing to decide — a toast reading
+   * "Couldn't save your reminder time" over a setting the user never touched is noise about
+   * a repair they did not know was happening. It simply tries again next launch.
+   */
+  const syncTimezone = useMutation({
+    mutationFn: (hour: number) => api.updateReminders(hour, deviceTimezone()),
+    onSuccess: (updated) => {
+      queryClient.setQueryData(queryKeys.me, updated);
+      applyTags(
+        updated.reminderHour,
+        updated.reminderTimezone ?? deviceTimezone(),
+      );
+    },
+    meta: { silent: true },
+  });
+
   /**
    * Re-asserts the external id on the OneSignal subscription.
    *
@@ -181,11 +208,32 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const { data: me } = useQuery({ ...meQuery(), enabled: Boolean(user) });
   const reminderHour = me?.reminderHour ?? null;
 
-  // The server owns the setting; the OneSignal tag is a projection of it. Re-applying on
-  // launch is what makes a reinstall or a new phone keep the reminder the user chose.
+  /*
+   * The server owns the setting; the OneSignal tag is a projection of it. Re-applying on
+   * launch is what makes a reinstall or a new phone keep the reminder the user chose.
+   *
+   * It is also where a move is noticed. The device's zone is the truth about where its owner
+   * is standing, so a stored zone that disagrees with it is stale by definition — pushed back
+   * first, and the tag applied from what the server confirms, so OneSignal and the database
+   * can never end up describing two different hours.
+   *
+   * `isPending` covers the paused case: offline the PATCH neither fails nor completes, and
+   * without the guard every render would queue another one. A failure just leaves the stale
+   * zone for the next launch to try again, which is the right cadence for a repair nobody
+   * asked for.
+   */
   useEffect(() => {
     if (!me) return;
-    applyTags(me.reminderHour, me.reminderTimezone ?? deviceTimezone());
+
+    const device = deviceTimezone();
+    const drifted = me.reminderHour !== null && me.reminderTimezone !== device;
+
+    if (drifted && !syncTimezone.isPending) {
+      syncTimezone.mutate(me.reminderHour as number);
+      return;
+    }
+
+    applyTags(me.reminderHour, me.reminderTimezone ?? device);
   }, [me]);
 
   const promptAfterFirstSession = useCallback(async () => {

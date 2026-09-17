@@ -19,13 +19,23 @@ import { openUrl } from "@/lib/open-url";
 import { isPurchaseCancelled, usePurchases } from "@/lib/purchases";
 import { toast } from "@/lib/toast";
 
+/*
+ * Kana and N5 are FREE, so neither belongs here — a benefit list that promises what the
+ * reader already has is the fastest way to lose their trust in the rest of it.
+ *
+ * Ward office leads because it is the only thing on this list nobody else sells. It used to
+ * sit third, behind two JLPT bullets, which put the commodity in front of the differentiator.
+ *
+ * "Unlimited daily reviews" is gone, and the wording matters more than it looks: reviews are
+ * genuinely uncapped, but NEW cards stay paced at ten a deck a day for everyone, premium
+ * included. Read quickly, "unlimited" promised the second thing, and a subscriber opening a
+ * freshly unlocked 55-card deck to ten cards has been told something untrue. Naming the cap
+ * that actually lifts is both honest and more concrete.
+ */
 const BENEFITS = [
-  // Kana and N5 are FREE, so neither belongs here — a benefit list that promises what the
-  // reader already has is the fastest way to lose their trust in the rest of it.
-  "N4 and N3, once kana and N5 are behind you",
-  "Unlimited daily reviews",
-  "Extra decks, like ward-office vocabulary",
-  "Priority updates as the app grows",
+  "Ward office vocabulary — the words on the forms you'll be handed",
+  "JLPT N4 and N3 — 200 more words",
+  "No 20-a-day review cap, however big your backlog gets",
 ];
 
 export default function PaywallScreen() {
@@ -153,6 +163,17 @@ export default function PaywallScreen() {
               <Text className="flex-1 text-body text-ink">{benefit}</Text>
             </View>
           ))}
+
+          {/*
+            Said here rather than discovered later. New cards are paced for everyone, so a
+            subscriber's first day on a new deck is ten cards — which looks exactly like
+            having bought nothing unless the paywall said so first. Small print, but it is
+            the difference between a design decision and a broken promise.
+          */}
+          <Text className="pt-1 text-caption text-ink-subtle">
+            New cards stay paced at ten per deck a day on every plan — that
+            pacing is how spaced repetition works, not something premium lifts.
+          </Text>
         </View>
 
         <View className="gap-3 px-4">

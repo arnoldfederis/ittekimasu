@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import type { StudyDay } from "@/lib/api";
 
 /** Twenty weeks, which is what fits across a phone at a legible square size. */
-const WEEKS = 20;
+const WEEKS = 21;
 const DAYS_IN_WEEK = 7;
 const SQUARE = 12;
 const GAP = 4;

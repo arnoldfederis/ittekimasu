@@ -268,6 +268,24 @@ export const KANA_ORDER: KanaEntry[] = KANA_SECTIONS.flatMap((section) =>
 
 export const KANA_COUNT = KANA_ORDER.length;
 
+/**
+ * One card in a sheet: a syllable AND the script it is being shown in.
+ *
+ * The script used to be a single prop on the sheet, which was fine while a sheet was always
+ * "the whole chart in the script you were reading". Practice can now mix them — tick あ on
+ * the hiragana grid and カ on the katakana one and both are in the deck — so the script has
+ * to ride along with each card rather than sit above the list.
+ */
+export type KanaCard = { entry: KanaEntry; script: KanaScript };
+
+/** The whole chart as cards in one script, for browsing. */
+export function toKanaCards(
+  entries: KanaEntry[],
+  script: KanaScript,
+): KanaCard[] {
+  return entries.map((entry) => ({ entry, script }));
+}
+
 export function glyphOf(entry: KanaEntry, script: KanaScript): string {
   return script === "hiragana" ? entry.hiragana : entry.katakana;
 }
@@ -278,19 +296,23 @@ export function indexOfKana(entry: KanaEntry): number {
 }
 
 /**
- * The whole syllabary in random order, for the shuffle mode on the chart.
+ * A practice deck: the given characters in random order.
  *
  * Reading order is what makes the chart a chart — あいうえお is a shape you memorise, and
  * swiping through it reinforces that shape. Which is exactly why it is useless for testing
  * yourself: by the third row you are reciting the sequence, not reading the character.
  * Shuffling breaks that, and nothing else about the sheet changes.
  *
+ * Takes the chosen cards rather than always shuffling all 104: practice is a selection made
+ * on the chart, and a session of あ行 and か行 — or a handful from each script — is the
+ * common case.
+ *
  * Fisher-Yates over a copy. A `sort(() => Math.random() - 0.5)` is not a shuffle — the
  * comparator is inconsistent, so the result is biased and V8's sort may not even terminate
  * sensibly on it.
  */
-export function shuffledKanaOrder(): KanaEntry[] {
-  const shuffled = [...KANA_ORDER];
+export function shuffleKana(cards: KanaCard[]): KanaCard[] {
+  const shuffled = [...cards];
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     const a = shuffled[i];

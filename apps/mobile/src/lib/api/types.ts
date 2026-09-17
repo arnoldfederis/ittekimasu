@@ -171,9 +171,12 @@ export type DueCardsResponse = {
    */
   nextDueDate: string | null;
   /**
-   * First-time cards left in today's intake, ACROSS every deck. Zero with `unseenCardCount`
-   * above zero means the deck is paced, not finished — a distinction the copy has to make or
-   * "All caught up" appears over ninety cards the learner has never seen.
+   * First-time cards left in today's intake for THIS deck — whichever of the two server
+   * limits bites first, the deck's ten or the day's thirty across everything.
+   *
+   * Zero with `unseenCardCount` above zero means the deck is paced, not finished — a
+   * distinction the copy has to make, or "All caught up" appears over ninety cards the
+   * learner has never seen.
    */
   newCardsRemainingToday: number;
   /** Cards in this deck never answered. */
