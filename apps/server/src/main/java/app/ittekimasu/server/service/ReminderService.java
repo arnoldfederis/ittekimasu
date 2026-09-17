@@ -84,10 +84,25 @@ public class ReminderService {
    * </ul>
    */
   private boolean isWorthReminding(User user) {
+    return suppressionReason(user) == null;
+  }
+
+  /**
+   * Why this user is not being reminded, or null when they are.
+   *
+   * <p>Split out so the tick can report WHICH rule fired. "0 worth reminding" is true but
+   * useless on its own — "already studied today" is the system working and "nothing due" is
+   * often the pacing doing its job, yet both look identical from the outside and neither is
+   * a fault.
+   */
+  private String suppressionReason(User user) {
     if (LocalDate.now(ReviewService.APP_ZONE).equals(user.getLastStudiedOn())) {
-      return false;
+      return "already studied today";
     }
-    return reviewService.hasWorkAvailable(user.getId());
+    if (!reviewService.hasWorkAvailable(user.getId())) {
+      return "no cards due and today's new-card intake is spent";
+    }
+    return null;
   }
 
   /**
@@ -97,14 +112,28 @@ public class ReminderService {
   @Scheduled(cron = "0 0,15,30,45 * * * *")
   @Transactional
   public void sendDueReminders() {
+    /*
+     * Every branch below now says WHY it stopped.
+     *
+     * This method used to log only when it actually sent, which made "the reminder never
+     * arrived" undiagnosable from the logs: an unset REST key, nobody whose hour had come
+     * round, and everybody filtered out as not worth reminding were all indistinguishable
+     * silence. One line per tick is 96 a day, which is nothing against the 10 MB the Docker
+     * log driver allows.
+     */
     if (!oneSignal.isConfigured()) {
+      log.warn(
+          "Reminder tick skipped: OneSignal is not configured. Set ONESIGNAL_REST_API_KEY"
+              + " (and ONESIGNAL_APP_ID) in the deployment environment.");
       return;
     }
 
     Instant now = Instant.now();
+
+    List<User> candidates = userRepository.findAllByReminderHourNotNull();
+    List<User> atTheirHour = candidates.stream().filter(user -> isDue(user, now)).toList();
     List<User> due =
-        userRepository.findAllByReminderHourNotNull().stream()
-            .filter(user -> isDue(user, now))
+        atTheirHour.stream()
             // Only now, on the handful of users whose hour has actually come round: the
             // check is two queries each, which is fine per tick and pointless for everyone
             // else.
@@ -112,6 +141,27 @@ public class ReminderService {
             .toList();
 
     if (due.isEmpty()) {
+      /*
+       * The three counts tell the whole story at a glance:
+       *   candidates 0            → nobody has a reminder hour set at all
+       *   atTheirHour 0           → set, but nobody's local hour matches this tick, or they
+       *                             have already been reminded today (lastRemindedOn)
+       *   due 0 with atTheirHour>0→ suppressed by isWorthReminding: already studied today,
+       *                             or every card is scheduled ahead
+       */
+      // Name the rule that fired for each, so "0 worth reminding" is not the end of the
+      // trail. At most a handful of users are ever at their hour on one tick.
+      List<String> reasons =
+          atTheirHour.stream()
+              .map(user -> "%s: %s".formatted(user.getFirebaseUid(), suppressionReason(user)))
+              .toList();
+
+      log.info(
+          "Reminder tick: nothing sent — {} with a reminder set, {} at their hour, 0 worth"
+              + " reminding {}",
+          candidates.size(),
+          atTheirHour.size(),
+          reasons);
       return;
     }
 
@@ -135,6 +185,10 @@ public class ReminderService {
       user.setLastRemindedOn(now.atZone(zone).toLocalDate());
     }
 
-    log.info("Reminder tick: {} users due", due.size());
+    // The external ids are the Firebase UIDs OneSignal was told about by
+    // `OneSignal.login(uid)`. If a push silently never lands, this is the value to check
+    // against the OneSignal dashboard's Audience — an id it has never seen comes back as
+    // `invalid_aliases`, which OneSignalClient logs at INFO.
+    log.info("Reminder tick: sent to {} users: {}", due.size(), externalIds);
   }
 }
