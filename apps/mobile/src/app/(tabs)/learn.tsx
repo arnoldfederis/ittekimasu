@@ -285,6 +285,39 @@ function ActiveCourseCard({
     (session?.unseenCardCount ?? 0) > 0 &&
     session?.newCardsRemainingToday === 0;
 
+  /*
+   * What is left AFTER this session, which is not what `unseenCardCount` says.
+   *
+   * The server counts every never-answered card in the deck, and the session in hand already
+   * holds some of them — `seen` is false on exactly those. Subtracting is what makes the
+   * difference between "10 today" and "10 today, 45 to come", and that gap is the whole
+   * reason a subscriber opening a freshly unlocked 55-card deck reads "10" as "that is all I
+   * bought". Pacing is deliberate; leaving it unexplained is not.
+   */
+  const newInSession = session?.cards.filter((card) => !card.seen).length ?? 0;
+  const stillToLearn = Math.max(
+    (session?.unseenCardCount ?? 0) - newInSession,
+    0,
+  );
+
+  /*
+   * The progress line, which has to survive being read by someone who just paid.
+   *
+   * The deck's size alone does not explain a ten-card session, so whenever there is more
+   * behind today's cards the line says so. A subscriber opening Ward Office sees "10 today ·
+   * 45 still to learn" rather than a bare "10 due today" on a deck of 55, which reads as a
+   * refund request waiting to happen.
+   */
+  const counted = `${reviewed} of ${total} cards`;
+  const remainder = stillToLearn > 0 ? ` · ${stillToLearn} still to learn` : "";
+  const progressLine = failed
+    ? "Couldn't load this deck."
+    : pacedOut
+      ? `${counted} · ${session?.unseenCardCount} still to learn`
+      : dueCount === 0 && !limitReached && returnsIn !== null
+        ? `${counted} · back ${formatReturn(returnsIn)}`
+        : `${counted} · ${dueCount} today${remainder}`;
+
   // "All caught up", "hit the daily cap" and "this request failed" all arrive as zero cards.
   // Telling them apart is the difference between reassurance, a reason to consider premium,
   // and a deck that looks finished when it never loaded at all.
@@ -330,13 +363,7 @@ function ActiveCourseCard({
           className="text-caption text-ink-muted"
           style={{ fontVariant: ["tabular-nums"] }}
         >
-          {failed
-            ? "Couldn't load this deck."
-            : pacedOut
-              ? `${reviewed} of ${total} cards · ${session?.unseenCardCount} still to learn`
-              : dueCount === 0 && !limitReached && returnsIn !== null
-                ? `${reviewed} of ${total} cards · back ${formatReturn(returnsIn)}`
-                : `${reviewed} of ${total} cards · ${dueCount} due today`}
+          {progressLine}
         </Text>
 
         {/*

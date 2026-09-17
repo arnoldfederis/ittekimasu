@@ -160,7 +160,17 @@ function RootNavigator() {
       </Stack.Protected>
 
       <Stack.Protected guard={!!user && hasOnboarded}>
-        <Stack.Screen name="(tabs)" />
+        {/*
+          The title is never drawn — this screen has no header — but iOS reads it for the
+          BACK HISTORY, the menu you get by long-pressing the back button. Without it that
+          menu lists the route name, so every pushed screen offered to go back to "(tabs)".
+          `headerBackButtonDisplayMode: "minimal"` only hides the label next to the chevron;
+          it does nothing for the menu behind it.
+
+          The app's name rather than a tab's: this one screen is four tabs, and "Home" would
+          be a lie three quarters of the time.
+        */}
+        <Stack.Screen name="(tabs)" options={{ title: "Ittekimasu" }} />
         {/*
           A modal, not a tab: a review session is a single task the learner starts and
           finishes, and the tab bar would invite them to wander out of it half-done.

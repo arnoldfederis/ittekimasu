@@ -145,13 +145,12 @@ export default function SettingsScreen() {
           </Section>
 
           <Section title="STUDY">
-            <ListRow
-              icon="textformat.size"
-              onPress={() => router.push("/display-settings")}
-              showChevron
-              subtitle="Text size and romaji readings"
-              title="Display"
-            />
+            {/*
+              No Display row. Text size and romaji are reachable from the cog on the kana
+              sheet and the review header — on the thing they change, where wanting them is
+              what makes you look. A copy parked in Settings was a second door to the same
+              two switches and the longer walk to both.
+            */}
             <ListRow
               icon="speaker.wave.2"
               onPress={() => router.push("/voice")}
@@ -192,6 +191,19 @@ export default function SettingsScreen() {
               onPress={() => openUrl(TERMS_URL)}
               showChevron
               title="Terms of use"
+            />
+            {/*
+              In-app, not hosted like the two above. The kana stroke diagrams are under the
+              SIL Open Font License, which asks for its terms to ship WITH the software in a
+              readable form — a link would put them behind a connection the chart itself does
+              not need.
+            */}
+            <ListRow
+              icon="text.book.closed"
+              onPress={() => router.push("/acknowledgements")}
+              showChevron
+              subtitle="Open source licences"
+              title="Acknowledgements"
             />
           </Section>
 
