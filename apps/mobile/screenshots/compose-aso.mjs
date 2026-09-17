@@ -124,7 +124,56 @@ const SLIDES = [
     caption: "Answers are queued, never lost.",
     palette: ON_PAPER,
   },
+  {
+    /*
+     * The teal arc, which is the loudest ground in the set, because this is the most
+     * visually distinctive shot the app has: a numbered diagram reads as "learn to WRITE
+     * Japanese" at thumbnail size, where a wall of flashcards reads as every other app in
+     * the category. The band carries the white headline and the paper below it is what the
+     * glyph's white card sits on, so the character stays the brightest thing on the slide.
+     */
+    out: "09-stroke-order.png",
+    background: "9.stroke.png",
+    device: "9.stroke-device.png",
+    headline: ["Learn to write it,", "not just read it."],
+    caption: "Numbered stroke order for kana and kanji.",
+    palette: ON_TEAL,
+  },
+  {
+    /*
+     * The quiet secondary ground, NOT the amber one, even though amber would contrast the
+     * teal ticks better. GUIDE.md gives amber a job — it marks the paid slides without
+     * saying "paid" — and kana practice is free. A background that says "premium" over a
+     * free feature is a worse error than a slightly softer contrast.
+     *
+     * Quiet suits it anyway: the shot is a grid of small cells and the only thing it has to
+     * communicate is which ones are ticked, so the background's job is to stay out of the way.
+     */
+    out: "10-practice.png",
+    background: "10.practice.png",
+    device: "10.practice-device.png",
+    headline: ["Drill the ones", "you keep missing."],
+    caption: "Pick straight off the chart — both scripts.",
+    palette: ON_PAPER,
+  },
 ];
+
+/*
+ * Compose a subset: `node screenshots/compose-aso.mjs 09 10`.
+ *
+ * Needed because only the OUTPUTS are committed — `aso/backgrounds/aso/` is a working
+ * directory that no longer holds the pairs slides 1-8 were built from, so a bare run would
+ * die on the first missing background. Matching on a substring of the output name keeps the
+ * argument short and the default (no arguments, compose everything) unchanged.
+ */
+const only = process.argv.slice(2);
+const selected = only.length
+  ? SLIDES.filter((slide) => only.some((arg) => slide.out.includes(arg)))
+  : SLIDES;
+
+if (only.length && selected.length === 0) {
+  throw new Error(`No slide matches ${only.join(", ")}`);
+}
 
 /** `&` in a headline would otherwise end the document. */
 function escapeXml(text) {
@@ -165,7 +214,7 @@ function buildSvg(slide) {
 await mkdir(OUT_DIR, { recursive: true });
 await mkdir(TMP_DIR, { recursive: true });
 
-for (const slide of SLIDES) {
+for (const slide of selected) {
   const svgPath = join(TMP_DIR, `${slide.out}.svg`);
   await writeFile(svgPath, buildSvg(slide));
 
@@ -192,4 +241,4 @@ for (const slide of SLIDES) {
 }
 
 await rm(TMP_DIR, { recursive: true, force: true });
-process.stdout.write(`\n${SLIDES.length} screenshots → ${OUT_DIR}\n`);
+process.stdout.write(`\n${selected.length} screenshots → ${OUT_DIR}\n`);

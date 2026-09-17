@@ -1,6 +1,6 @@
 # App Store screenshot guide
 
-Eight slides, in this order. App Store Connect accepts ten; eight is enough and every extra one is another thing to redo when the UI changes.
+Ten slides, in this order — the most App Store Connect accepts. It was eight on the reasoning that every extra one is another thing to redo when the UI changes; stroke order and kana practice earned the last two places because neither is a variation on a slide already here, and stroke order in particular is the one shot in the set that could not belong to a generic flashcard app.
 
 **Only the first three are seen by most people** — one shows in search results, three on the product page before anyone scrolls. Slides 1–3 have to carry the whole pitch on their own.
 
@@ -10,9 +10,9 @@ Four, not eight. A gallery that changes background every slide reads as eight se
 
 | Use | File | Why |
 |---|---|---|
-| **Primary** — slides 1, 2, 3 | `02-paper-teal-arc` | Teal band across the top holds the headline at full contrast, paper below holds the device. The only one built for a headline. |
-| **Secondary** — slides 4, 6 | `01-paper-teal-amber` | Soft, quiet, keeps the screenshot the loudest thing on the slide. |
-| **Warm** — slides 5, 8 | `04-paper-amber` | Amber is the app's Pro/accent colour. Marks the paid slides without saying "paid". |
+| **Primary** — slides 1, 2, 3, 9 | `02-paper-teal-arc` | Teal band across the top holds the headline at full contrast, paper below holds the device. The only one built for a headline. |
+| **Secondary** — slides 4, 6, 10 | `01-paper-teal-amber` | Soft, quiet, keeps the screenshot the loudest thing on the slide. |
+| **Warm** — slides 5, 8 | `04-paper-amber` | Amber is the app's Pro/accent colour. Marks the paid slides without saying "paid". **So never put a free feature on it** — practice (10) wanted amber's contrast against its teal ticks and got the quiet ground instead, because a premium-coloured slide over a free feature is the worse mistake. |
 | **Dark** — slide 7 | `05-ink-dark` | One dark slide breaks up a gallery of eight light ones. Shows dark mode exists. |
 
 Skip `03-teal-deep` unless a slide is nothing but a headline — a full-bleed teal makes the phone screenshot on top of it look like a hole. `06-ink-teal-arc` is the dark twin of 02, only useful if you go dark-first. `07-paper-positive` and `08-paper-plain` are too close to `01` to earn a place; keep them as spares.
@@ -108,6 +108,20 @@ Remember to switch back to light before capturing anything else.
 **Background:** `04-paper-amber`
 **Headline:** N4, N3, Ward Office. No daily limit.
 **Caption:** 7-day free trial.
+
+### 9 — Kana stroke order
+**Screen:** Kana chart, tap a character, stroke order on (the hand icon in the sheet header).
+**State that matters:** a character with several strokes — な, ぬ or あ — so the numbering is the point rather than a single digit. **Every number must be legible against the stroke it sits on**; numbers are ink, same as the strokes, and they carry a background-coloured halo for exactly this reason. If one is hard to read in the capture, it will be invisible in the thumbnail.
+**Background:** `02-paper-teal-arc`
+**Headline:** Learn to write it, not just read it.
+**Caption:** Numbered stroke order for kana and kanji.
+
+### 10 — Kana practice
+**Screen:** Kana chart, Practice in the navigation bar, mid-selection.
+**State that matters:** row handles and a section's Select all in frame, and the pinned count button at the bottom. Shoot the **picker**, not the shuffled card — choosing off the chart is the part nothing else does. Pick a HANDFUL rather than most of the chart: the headline is about the ones you keep missing, and 43 of 46 ticked says "select all" instead.
+**Background:** `01-paper-teal-amber` — not amber, see the background table.
+**Headline:** Drill the ones you keep missing.
+**Caption:** Pick straight off the chart — both scripts.
 
 ---
 
