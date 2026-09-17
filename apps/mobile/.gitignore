@@ -7,7 +7,17 @@ node_modules/
 .expo/
 dist/
 web-build/
-expo-env.d.ts
+
+# expo-env.d.ts is deliberately NOT ignored, against its own NOTE and Expo's template.
+#
+# tsconfig `include`s it, and it is what declares the side-effect import of global.css. It
+# is written by the dev server, so it exists on every machine that has ever run one — and on
+# no CI runner. Ignored, `bun run check-types` passes locally and fails in CI with
+# "TS2882: Cannot find module or type declarations for side-effect import of '../global.css'",
+# which is how the first pull request this repo ever opened found it.
+#
+# Three lines, regenerated identically, so committing it costs nothing and makes the two
+# typechecks the same command.
 
 # Native
 .kotlin/
