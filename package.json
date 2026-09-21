@@ -21,7 +21,9 @@
     "apps/*"
   ],
   "resolutions": {
-    "react": "19.2.3"
+    "react": "19.2.3",
+    "react-native-screens": "4.26.2",
+    "expo-constants": "57.0.19"
   },
   "trustedDependencies": [
     "@firebase/util",

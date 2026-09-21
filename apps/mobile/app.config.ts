@@ -109,7 +109,28 @@ const config: ExpoConfig = {
     predictiveBackGestureEnabled: false,
   },
   plugins: [
-    "expo-audio",
+    [
+      /*
+       * Every one of these is a DEFAULT being turned off, and registering this plugin as a
+       * bare string silently accepted all three.
+       *
+       * `enableBackgroundPlayback` defaults to TRUE, which pushes "audio" into
+       * UIBackgroundModes — and got the app rejected under guideline 2.5.4: Apple declares
+       * the mode and then finds nothing audible playing in the background. This app's only
+       * use of expo-audio is `setAudioModeAsync({ playsInSilentMode })` in lib/speech.ts,
+       * which sets the AVAudioSession category so expo-speech can talk through the ring
+       * switch. That is a FOREGROUND capability and needs no background mode.
+       *
+       * The other two: the app never records, so asking for the microphone string on iOS
+       * and RECORD_AUDIO on Android is permission surface with nothing behind it.
+       */
+      "expo-audio",
+      {
+        enableBackgroundPlayback: false,
+        microphonePermission: false,
+        recordAudioAndroid: false,
+      },
+    ],
     "expo-font",
     "expo-image",
     "expo-web-browser",
