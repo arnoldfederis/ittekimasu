@@ -547,7 +547,17 @@ export default function ReviewScreen() {
     <View className="flex-1 bg-canvas" style={{ paddingTop: 8 }}>
       {header}
 
-      <SegmentedProgress current={index} total={cards.length} />
+      {/*
+        `index + 1`, not `index`: the bar marks the card you are ON, which is what the
+        "Card N of M" line underneath already says.
+
+        Passing `index` measured cards ANSWERED instead, and the two disagreed at both ends
+        of every session — card 1 of 20 sat beside an empty bar, and the last card left a
+        grey segment that read as one more question waiting. It never filled: answering it
+        flips `finished`, and the summary replaces this bar before it could render full. The
+        last segment therefore looked like a step the session skipped.
+      */}
+      <SegmentedProgress current={index + 1} total={cards.length} />
 
       {/*
         iOS silences speech when the ring/silent switch is on, with no error and no way for

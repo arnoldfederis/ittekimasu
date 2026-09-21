@@ -6,6 +6,12 @@ import { View } from "react-native";
  *
  * A bar rather than "3 of 20": the length of what is left is the useful part, and a session
  * is short enough that the segments stay legible.
+ *
+ * `current` is HOW MANY segments are lit, so a caller tracking a zero-based cursor passes
+ * `index + 1` to light the card being answered. Passing the bare cursor lights the cards
+ * already behind you, which leaves the final segment grey for the whole of the last
+ * question — and on a screen that swaps to a summary the moment it is answered, that
+ * segment never fills and reads as a step that was skipped.
  */
 export function SegmentedProgress({
   current,

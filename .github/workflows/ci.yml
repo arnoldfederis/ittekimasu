@@ -17,11 +17,84 @@ permissions:
   contents: read
 
 jobs:
+  # Which halves of the monorepo does this PR actually touch?
+  #
+  # Done as a job with `if:` on the others rather than `on.pull_request.paths`, for two
+  # reasons. A workflow filtered out by `paths` never REPORTS a check, and a required
+  # check that never reports leaves a PR pending forever — this repo has no branch
+  # protection today (private, free plan) but making it public would make that available,
+  # and a skipped JOB reports a conclusion where a filtered workflow reports nothing.
+  # It also keeps everything in one file instead of duplicating the boilerplate below.
+  #
+  # Plain git rather than a paths-filter action: every other action here is first-party,
+  # and this is a one-line diff. The file list is attacker-controllable on a fork PR, so
+  # it is only ever matched against — never evaluated, never interpolated into a command.
+  changes:
+    name: What changed
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+      server: ${{ steps.filter.outputs.server }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The diff needs both endpoints, and the default shallow clone has neither.
+          fetch-depth: 0
+
+      - id: filter
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          # workflow_dispatch has no PR to diff against, and it is the button you press
+          # when you want a full run. Never narrow it.
+          if [ "$EVENT_NAME" != "pull_request" ]; then
+            echo "mobile=true" >> "$GITHUB_OUTPUT"
+            echo "server=true" >> "$GITHUB_OUTPUT"
+            echo "Not a pull request — running everything."
+            exit 0
+          fi
+
+          # Three dots: changes made ON this branch since it forked, not changes that
+          # landed on main in the meantime. A stale branch would otherwise look like it
+          # touched everything anyone else has merged.
+          changed=$(git diff --name-only "$BASE_SHA...$HEAD_SHA")
+          echo "Changed files:"
+          printf '%s\n' "$changed" | sed 's/^/  /'
+
+          matches() { printf '%s\n' "$changed" | grep -qE "$1"; }
+
+          mobile=false
+          server=false
+
+          # Root package.json, bun.lock, bunfig.toml and turbo.json all feed the mobile
+          # build — resolutions, the hoisted linker and the task graph live there, and
+          # the version drift that broke a release came from exactly those files.
+          if matches '^(apps/mobile/|package\.json$|bun\.lock$|bunfig\.toml$|turbo\.json$|\.github/workflows/ci\.yml$)'; then
+            mobile=true
+          fi
+
+          # The server is Maven and reads none of the Bun files. Its Dockerfile lives
+          # under apps/server and copies only from there, so the image job shares this.
+          if matches '^(apps/server/|\.github/workflows/ci\.yml$)'; then
+            server=true
+          fi
+
+          echo "mobile=$mobile" >> "$GITHUB_OUTPUT"
+          echo "server=$server" >> "$GITHUB_OUTPUT"
+          echo "→ mobile=$mobile server=$server"
+
   # Two jobs, not one. The mobile app is Bun and the server is Maven; running them
   # together means a Java compile error hides a Biome failure and every run pays for
   # both toolchains. Split, they also run in parallel.
   mobile:
     name: Mobile — lint & typecheck
+    needs: changes
+    if: needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -102,6 +175,8 @@ jobs:
 
   server:
     name: Server — test
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -180,6 +255,8 @@ jobs:
   # than on main with the deploy already in flight.
   docker:
     name: Server — image builds
+    needs: changes
+    if: needs.changes.outputs.server == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:

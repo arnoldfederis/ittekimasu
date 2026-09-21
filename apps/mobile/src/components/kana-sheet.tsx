@@ -160,6 +160,22 @@ export function KanaSheet({
   /** Text size and romaji, over the card they change. See display-prefs-sheet.tsx. */
   const [showDisplayPrefs, setShowDisplayPrefs] = useState(false);
 
+  /*
+   * Which card of the deck is in front of the thumb — PRACTICE ONLY.
+   *
+   * Browsing still has no counter, for the reason in this component's doc: the chart is
+   * something you look things up in, and "3 of 104" would make looking up ぬ feel like
+   * abandoning a session you never started. Practice is the opposite case. The learner chose
+   * those characters, the deck is finite and shuffled, and without a position there is no way
+   * to tell a deck of 8 from a deck of 80, or to know whether the end is one swipe away or
+   * thirty. That is the whole question a picked deck raises and the chart does not.
+   *
+   * Page tracking was removed from this file once before, along with the stroke animation
+   * that needed it. This is not that: it feeds a label, not a per-frame reveal, and it costs
+   * one setState per completed swipe.
+   */
+  const [position, setPosition] = useState(0);
+
   const open = index !== null;
 
   /*
@@ -174,7 +190,12 @@ export function KanaSheet({
   const [shown, setShown] = useState({ order, practice, index: index ?? 0 });
 
   useEffect(() => {
-    if (index !== null) setShown({ order, practice, index });
+    if (index !== null) {
+      setShown({ order, practice, index });
+      // The list mounts scrolled to `index`, and no scroll event fires for that — so the
+      // counter has to be told where it is starting, or it reads 1 on the card you tapped.
+      setPosition(index);
+    }
   }, [index, order, practice]);
 
   /*
@@ -227,6 +248,20 @@ export function KanaSheet({
     if (!first) return "Kana";
     return first === "hiragana" ? "Hiragana" : "Katakana";
   }, [shown]);
+
+  /**
+   * The practice counter, clamped to the deck.
+   *
+   * `position` comes from a scroll offset while `shown.order` is frozen mid-dismiss, so the
+   * two can disagree for a frame — long enough to render "12 / 8" on the way down.
+   */
+  const counter = useMemo(
+    () => ({
+      current: Math.min(position + 1, Math.max(shown.order.length, 1)),
+      total: shown.order.length,
+    }),
+    [position, shown],
+  );
 
   const speak = useCallback(async (entry: KanaEntry, script: KanaScript) => {
     if (!(await isSoundEnabled())) return;
@@ -399,10 +434,24 @@ export function KanaSheet({
         onLayout={(event) => setPageWidth(event.nativeEvent.layout.width)}
       >
         <View className="flex-row items-center justify-between px-4 pt-4 pb-2">
-          {/* No progress counter on purpose: nothing here is a session to get through. */}
-          <Text className="text-callout text-ink-muted">
+          {/*
+            Browsing carries no progress counter on purpose: the chart is not a session to
+            get through. A picked practice deck is, so it gets one — see `position`.
+
+            Spelled out for VoiceOver rather than left as "3 / 20", which reads aloud as
+            "three slash twenty".
+          */}
+          <Text
+            accessibilityLabel={
+              shown.practice
+                ? `${deckLabel}${strokeOrder ? ", stroke order" : ""}, card ${counter.current} of ${counter.total}`
+                : undefined
+            }
+            className="text-callout text-ink-muted"
+          >
             {deckLabel}
             {strokeOrder ? " · Stroke order" : ""}
+            {shown.practice ? ` · ${counter.current} / ${counter.total}` : ""}
           </Text>
 
           {/*
@@ -494,10 +543,19 @@ export function KanaSheet({
           initialScrollIndex={shown.index}
           keyExtractor={shown.practice ? keyOf : browseKeyOf}
           maxToRenderPerBatch={2}
-          onMomentumScrollEnd={() => {
+          onMomentumScrollEnd={(event) => {
             // Speaking on every swipe would turn a flick through the chart into noise. The
             // card is tappable; hearing it stays a choice.
             stopSpeaking();
+
+            // Settled on a page, so this is the one place the position is unambiguous —
+            // mid-drag it is a fraction, and paging means the thumb can only land on a
+            // whole card anyway.
+            if (pageWidth > 0) {
+              setPosition(
+                Math.round(event.nativeEvent.contentOffset.x / pageWidth),
+              );
+            }
           }}
           pagingEnabled
           ref={listRef}
