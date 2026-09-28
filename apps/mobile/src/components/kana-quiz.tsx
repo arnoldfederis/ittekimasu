@@ -368,7 +368,6 @@ export function KanaQuiz({ deck, mode, onClose }: KanaQuizProps) {
                   autoCorrect={false}
                   autoFocus
                   control={form.control}
-                  editable={feedback === null}
                   keyboardType="ascii-capable"
                   label="Romaji"
                   name="answer"
@@ -376,15 +375,24 @@ export function KanaQuiz({ deck, mode, onClose }: KanaQuizProps) {
                   placeholder="e.g. ka"
                   returnKeyType="done"
                   spellCheck={false}
-                  // Keeps the keyboard up between questions, so a run of answers is typing,
-                  // not dismissing and reopening the keyboard forty times.
+                  /*
+                   * Keeps the keyboard up between questions, so a run of answers is typing,
+                   * not dismissing and reopening the keyboard forty times.
+                   *
+                   * Never `editable={false}` while the answer is showing, however tempting:
+                   * on iOS a focused field that stops being editable resigns first responder,
+                   * which drops the keyboard after EVERY answer and overrides this prop
+                   * entirely. `answer()` already ignores a submit while feedback is up, so
+                   * the field can stay live.
+                   */
                   submitBehavior="submit"
                 />
-                <Button
-                  disabled={feedback !== null}
-                  onPress={submitTyped}
-                  title="Check"
-                />
+                {/*
+                  Not disabled during feedback, for the same reason: a tap on a disabled
+                  button is not "handled", so the ScrollView takes it as a tap on empty space
+                  and dismisses the keyboard. The guard in `answer()` makes it a no-op.
+                */}
+                <Button onPress={submitTyped} title="Check" />
               </View>
             )}
           </ScrollView>
