@@ -34,6 +34,32 @@ export type KanaRecord = {
 /** By glyph — ぢゃ and ヂャ are separate records, because they are separate things to read. */
 export type KanaProgress = Readonly<Record<string, KanaRecord>>;
 
+/**
+ * How well a character is known, for the progress page.
+ *
+ * Every step is reached by getting it RIGHT, and none is ever taken away by getting it wrong:
+ * the counts only grow, so a character can move up a level and never down. A miss just means
+ * it takes longer to climb, which is the same no-punishment rule as the rest of the app.
+ *
+ * Mastered needs both a run of right answers AND a good ratio, so ten lucky guesses spread
+ * over thirty attempts reads as still learning.
+ */
+export type Mastery = "new" | "practising" | "learning" | "mastered";
+
+export const MASTERED_CORRECT = 5;
+export const MASTERED_ACCURACY = 0.8;
+export const LEARNING_CORRECT = 2;
+
+export function masteryOf(record: KanaRecord | undefined): Mastery {
+  if (!record || record.attempts === 0) return "new";
+  const accuracy = record.correct / record.attempts;
+  if (record.correct >= MASTERED_CORRECT && accuracy >= MASTERED_ACCURACY) {
+    return "mastered";
+  }
+  if (record.correct >= LEARNING_CORRECT) return "learning";
+  return "practising";
+}
+
 const EMPTY: KanaProgress = Object.freeze({});
 
 const storageKey = (uid: string) => `ittekimasu.kanaProgress.${uid}`;

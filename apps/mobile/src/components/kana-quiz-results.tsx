@@ -1,7 +1,18 @@
 import { Image } from "expo-image";
+import { useEffect, useState } from "react";
 import { ScrollView, Text, View } from "react-native";
+import Animated, {
+  Easing,
+  FadeInDown,
+  useAnimatedProps,
+  useReducedMotion,
+  useSharedValue,
+  withDelay,
+  withTiming,
+} from "react-native-reanimated";
 import Svg, { Circle, Line, Rect } from "react-native-svg";
 import { Button } from "@/components/button";
+import { Confetti } from "@/components/confetti";
 import { glyphOf } from "@/constants/kana";
 import { useThemeColors } from "@/constants/theme";
 import type { BackupStatus } from "@/lib/kana-progress";
@@ -9,8 +20,15 @@ import {
   formatDuration,
   formatSeconds,
   type QuizAnswer,
+  type QuizSummary,
   summariseQuiz,
 } from "@/lib/kana-quiz";
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+/** How long the score takes to fill in, and how long it waits before starting. */
+const SCORE_DURATION_MS = 900;
+const SCORE_DELAY_MS = 150;
 
 /**
  * The end of a kana quiz: the score, how fast it went, and every character with its answer.
@@ -19,6 +37,11 @@ import {
  * "Again" and every validation message in the app. A learner drilling kana gets most of them
  * wrong at first; a results screen that looked like a marked exam paper would make the second
  * session less likely than the first.
+ *
+ * It ARRIVES rather than appearing: the ring fills and the score counts up while the rest
+ * slides in beneath it, one section after another, and a perfect score gets confetti. The
+ * finish of a quiz is the one moment worth marking. All of it respects Reduce Motion — with
+ * it on, the screen is simply there, complete, with no confetti at all.
  */
 export function KanaQuizResults({
   answers,
@@ -32,6 +55,12 @@ export function KanaQuizResults({
   bottomInset: number;
 }) {
   const summary = summariseQuiz(answers);
+  const reduced = useReducedMotion();
+  const perfect = summary.total > 0 && summary.correct === summary.total;
+
+  /** Each section slides in after the one above it; long answer lists stop staggering at 10. */
+  const enter = (step: number) =>
+    reduced ? undefined : FadeInDown.delay(250 + step * 90).duration(380);
 
   return (
     <View className="flex-1">
@@ -44,27 +73,43 @@ export function KanaQuizResults({
         }}
         showsVerticalScrollIndicator={false}
       >
-        <ScoreDonut correct={summary.correct} total={summary.total} />
+        <ScoreDonut
+          correct={summary.correct}
+          reduced={reduced}
+          total={summary.total}
+        />
 
-        <View className="flex-row gap-3">
-          <Stat label="Total time" value={formatDuration(summary.totalMs)} />
-          <Stat
-            label="Average per kana"
-            value={formatSeconds(summary.averageMs)}
-          />
-        </View>
+        <Animated.View entering={enter(0)}>
+          <Headline summary={summary} />
+        </Animated.View>
 
-        <SpeedChart answers={answers} averageMs={summary.averageMs} />
+        <Animated.View entering={enter(1)}>
+          <View className="flex-row gap-3">
+            <Stat label="Total time" value={formatDuration(summary.totalMs)} />
+            <Stat
+              label="Average per kana"
+              value={formatSeconds(summary.averageMs)}
+            />
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={enter(2)}>
+          <SpeedChart answers={answers} averageMs={summary.averageMs} />
+        </Animated.View>
 
         <View className="gap-2">
-          <Text className="font-semibold text-heading text-ink">Answers</Text>
+          <Animated.View entering={enter(3)}>
+            <Text className="font-semibold text-heading text-ink">Answers</Text>
+          </Animated.View>
           {answers.map((answer, index) => (
-            <AnswerRow
-              answer={answer}
+            <Animated.View
+              entering={enter(4 + Math.min(index, 10))}
               // The order they were asked in, which is also a stable identity here: a deck
               // never asks the same card twice.
               key={`${index}-${answer.card.script}-${answer.card.entry.hiragana}`}
-            />
+            >
+              <AnswerRow answer={answer} />
+            </Animated.View>
           ))}
         </View>
       </ScrollView>
@@ -78,6 +123,37 @@ export function KanaQuizResults({
         </Text>
         <Button onPress={onDone} title="Done" />
       </View>
+
+      {/* Over everything, touch-transparent. Not rendered at all with Reduce Motion on. */}
+      {perfect && !reduced ? <Confetti /> : null}
+    </View>
+  );
+}
+
+/**
+ * One line that reads the score back in words, always encouraging. Never "you failed" or a
+ * count of misses: the misses are listed below, where they are useful rather than a verdict.
+ */
+function Headline({ summary }: { summary: QuizSummary }) {
+  const ratio = summary.total ? summary.correct / summary.total : 0;
+  const [title, detail] =
+    ratio === 1
+      ? ["Perfect score!", "Every single one, right."]
+      : ratio >= 0.8
+        ? ["Great run", "You knew almost all of them."]
+        : ratio >= 0.5
+          ? ["Good progress", "More than half of them already stick."]
+          : [
+              "Every answer counts",
+              "The ones you missed will come easier next time.",
+            ];
+
+  return (
+    <View className="items-center gap-1">
+      <Text className="font-semibold text-ink" style={{ fontSize: 24 }}>
+        {title}
+      </Text>
+      <Text className="text-center text-body text-ink-muted">{detail}</Text>
     </View>
   );
 }
@@ -94,13 +170,63 @@ const STATUS_COPY: Record<BackupStatus, string> = {
   failed: "Saved on this phone. The backup will try again next time.",
 };
 
-function ScoreDonut({ correct, total }: { correct: number; total: number }) {
+/**
+ * The score ring: fills from twelve o'clock while the number in the middle counts up to
+ * match, so the two finish on the same frame.
+ */
+function ScoreDonut({
+  correct,
+  total,
+  reduced,
+}: {
+  correct: number;
+  total: number;
+  reduced: boolean;
+}) {
   const colors = useThemeColors();
   const size = 168;
   const stroke = 14;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const ratio = total ? correct / total : 0;
+
+  // The ring: a dash the full length of the circle, offset back until only `ratio` shows.
+  const fill = useSharedValue(reduced ? ratio : 0);
+  useEffect(() => {
+    fill.value = reduced
+      ? ratio
+      : withDelay(
+          SCORE_DELAY_MS,
+          withTiming(ratio, {
+            duration: SCORE_DURATION_MS,
+            easing: Easing.out(Easing.cubic),
+          }),
+        );
+  }, [fill, ratio, reduced]);
+  const ringProps = useAnimatedProps(() => ({
+    strokeDashoffset: circumference * (1 - fill.value),
+  }));
+
+  // The number, on the same curve and clock as the ring.
+  const [shown, setShown] = useState(reduced ? correct : 0);
+  useEffect(() => {
+    if (reduced || correct === 0) {
+      setShown(correct);
+      return;
+    }
+    const start = Date.now() + SCORE_DELAY_MS;
+    let frame = 0;
+    const tick = () => {
+      const t = Math.min(
+        Math.max((Date.now() - start) / SCORE_DURATION_MS, 0),
+        1,
+      );
+      setShown(Math.round((1 - (1 - t) ** 3) * correct));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [correct, reduced]);
 
   return (
     <View
@@ -118,14 +244,19 @@ function ScoreDonut({ correct, total }: { correct: number; total: number }) {
             stroke={colors.accentTint}
             strokeWidth={stroke}
           />
+          {/*
+            Not rendered at all for a zero score: a round line cap draws its half-disc even
+            when none of the dash is visible, which would leave a green dot on 0/10.
+          */}
           {ratio > 0 ? (
-            <Circle
+            <AnimatedCircle
+              animatedProps={ringProps}
               cx={size / 2}
               cy={size / 2}
               fill="none"
               r={radius}
               stroke={colors.positive}
-              strokeDasharray={`${circumference * ratio} ${circumference}`}
+              strokeDasharray={`${circumference} ${circumference}`}
               strokeLinecap="round"
               strokeWidth={stroke}
               // Starts at twelve o'clock, the way a score dial reads.
@@ -135,7 +266,7 @@ function ScoreDonut({ correct, total }: { correct: number; total: number }) {
         </Svg>
         <View className="absolute inset-0 items-center justify-center">
           <Text className="font-semibold text-ink" style={{ fontSize: 40 }}>
-            {correct}/{total}
+            {shown}/{total}
           </Text>
           <Text className="text-caption text-ink-muted">correct</Text>
         </View>

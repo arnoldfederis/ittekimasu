@@ -1,9 +1,11 @@
 import { Image } from "expo-image";
-import { Stack } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Button } from "@/components/button";
 import { KanaQuiz } from "@/components/kana-quiz";
+import { KanaScriptToggle } from "@/components/kana-script-toggle";
 import { KanaSheet } from "@/components/kana-sheet";
 import { useOfflineBannerClearance } from "@/components/offline-banner";
 import {
@@ -19,7 +21,11 @@ import {
   toKanaCards,
 } from "@/constants/kana";
 import { useThemeColors } from "@/constants/theme";
-import { useKanaProgress, useKanaProgressRestore } from "@/lib/kana-progress";
+import {
+  masteryOf,
+  useKanaProgress,
+  useKanaProgressRestore,
+} from "@/lib/kana-progress";
 import type { QuizMode } from "@/lib/kana-quiz";
 
 const SCRIPTS: { key: KanaScript; label: string }[] = [
@@ -56,6 +62,21 @@ export default function KanaScreen() {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   const progress = useKanaProgress();
+  const insets = useSafeAreaInsets();
+
+  /** Both scripts together, for the progress card's one-line summary. */
+  const overall = useMemo(() => {
+    let mastered = 0;
+    let practised = 0;
+    for (const entry of KANA_ORDER) {
+      for (const candidate of SCRIPTS) {
+        const mastery = masteryOf(progress[glyphOf(entry, candidate.key)]);
+        if (mastery === "mastered") mastered++;
+        if (mastery !== "new") practised++;
+      }
+    }
+    return { mastered, practised };
+  }, [progress]);
   // Pro: fold the server backup into this device's marks. No-op on the free plan.
   useKanaProgressRestore();
 
@@ -255,31 +276,44 @@ export default function KanaScreen() {
         contentContainerStyle={{ paddingBottom: 40 + bannerClearance }}
         contentInsetAdjustmentBehavior="automatic"
       >
-        <View className="flex-row gap-2 px-4 pt-4 pb-2">
-          {SCRIPTS.map((entry) => {
-            const selected = script === entry.key;
-            return (
-              <Pressable
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                className={`flex-1 items-center rounded-pill border py-2 ${
-                  selected
-                    ? "border-primary bg-primary-tint"
-                    : "border-line bg-surface"
-                }`}
-                key={entry.key}
-                onPress={() => setScript(entry.key)}
-              >
-                <Text
-                  className={`text-callout ${
-                    selected ? "font-semibold text-primary" : "text-ink-muted"
-                  }`}
-                >
-                  {entry.label}
-                </Text>
-              </Pressable>
-            );
-          })}
+        {/*
+          The way into the progress page, above the script tabs. Hidden while picking: the
+          picker is a mode with its own job, and a card that leaves the screen mid-selection
+          would throw the selection away.
+        */}
+        {picking ? null : (
+          <Pressable
+            accessibilityHint="Shows how well you know each kana"
+            accessibilityRole="button"
+            className="mx-4 mt-4 flex-row items-center gap-3 rounded-card bg-surface px-4 py-3 active:opacity-80"
+            onPress={() => router.push("/kana-progress")}
+            style={{ borderCurve: "continuous" }}
+          >
+            <Image
+              source="sf:chart.bar.fill"
+              style={{ width: 20, height: 20 }}
+              tintColor={colors.primary}
+            />
+            <View className="flex-1 gap-0.5">
+              <Text className="font-semibold text-body text-ink">
+                Your progress
+              </Text>
+              <Text className="text-caption text-ink-muted">
+                {overall.practised === 0
+                  ? "Take a quiz to start tracking what you know."
+                  : `${overall.mastered} mastered · ${overall.practised} practised, across both scripts`}
+              </Text>
+            </View>
+            <Image
+              source="sf:chevron.right"
+              style={{ width: 12, height: 12 }}
+              tintColor={colors.inkSubtle}
+            />
+          </Pressable>
+        )}
+
+        <View className="px-4 pt-4 pb-2">
+          <KanaScriptToggle onChange={setScript} script={script} />
         </View>
 
         <View className="flex-row items-center gap-3 px-4 pb-4">
@@ -408,7 +442,9 @@ export default function KanaScreen() {
       {picking ? (
         <View
           className="gap-2 border-line border-t bg-surface px-4 pt-3"
-          style={{ paddingBottom: 16 + bannerClearance }}
+          // The safe area as well as the banner: without it the buttons sat 16pt from the
+          // bottom edge, on top of the home indicator.
+          style={{ paddingBottom: 16 + insets.bottom + bannerClearance }}
         >
           <Text className="text-center text-caption text-ink-subtle">
             {pickedCards.length === 0
