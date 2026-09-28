@@ -43,7 +43,7 @@ const config: ExpoConfig = {
    * The build NUMBER is not here: eas.json sets appVersionSource "remote", so EAS owns it
    * and autoIncrement bumps it per production build.
    */
-  version: "1.0",
+  version: "1.1",
   orientation: "portrait",
   icon: "./assets/images/icon.png",
   scheme: "ittekimasu",
