@@ -111,6 +111,21 @@ export type StudyDay = {
   reviewCount: number;
 };
 
+/**
+ * One kana's quiz record. Kept on the device for everyone and backed up to the server for
+ * Pro; the server merges with GREATEST, so these are running totals, never deltas.
+ */
+export type KanaProgressItem = {
+  /** The character as shown, which also says which script: ぢゃ and ヂャ are two rows. */
+  glyph: string;
+  /** Answers it was right. What the chart's streak mark counts. */
+  correct: number;
+  /** Every answer, right or not. */
+  attempts: number;
+  /** Time spent answering it, summed across every attempt. */
+  totalMs: number;
+};
+
 /** A card the learner has answered, as listed in the seen-cards browser. */
 export type SeenCard = {
   cardId: string;

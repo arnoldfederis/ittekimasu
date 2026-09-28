@@ -21,6 +21,7 @@ export const queryKeys = {
   courses: ["courses"] as const,
   studyDays: ["study-days"] as const,
   seenCards: ["seen-cards"] as const,
+  kanaProgress: ["kana-progress"] as const,
   templates: (purpose?: VisaPurpose) =>
     ["templates", purpose ?? "all"] as const,
   due: (courseId: string) => ["due", courseId] as const,
@@ -48,6 +49,17 @@ export const studyDaysQuery = () =>
     queryFn: () => api.getStudyDays(),
     // The grid is decoration on a screen that already works; a failure here is not worth
     // interrupting someone's profile over.
+    meta: { silent: true },
+  });
+
+/**
+ * The Pro backup of the kana quiz, read so a new install can restore it. Silent: the device
+ * copy is what the chart shows, so a failed restore costs nothing the learner can act on.
+ */
+export const kanaProgressQuery = () =>
+  queryOptions({
+    queryKey: queryKeys.kanaProgress,
+    queryFn: () => api.getKanaProgress(),
     meta: { silent: true },
   });
 

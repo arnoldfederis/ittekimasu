@@ -5,6 +5,7 @@ import type {
   CourseSummary,
   DueCardsResponse,
   EntitlementResponse,
+  KanaProgressItem,
   ReviewRating,
   ReviewResult,
   SeenCard,
@@ -39,6 +40,20 @@ export const api = {
 
   /** Every card the learner has answered, for the seen-cards browser. */
   getSeenCards: () => request<SeenCard[]>("/users/me/cards"),
+
+  /** The kana quiz backup, to restore onto a new install. Pro only; 402 otherwise. */
+  getKanaProgress: () => request<KanaProgressItem[]>("/users/me/kana-progress"),
+
+  /**
+   * Backs up the device's kana progress. Sends running totals, and the server keeps the
+   * larger of each, so sending the same snapshot twice — a retry, or a replay after the app
+   * comes back online — changes nothing. Returns the merged whole. Pro only; 402 otherwise.
+   */
+  syncKanaProgress: (items: KanaProgressItem[]) =>
+    request<KanaProgressItem[]>("/users/me/kana-progress", {
+      method: "PATCH",
+      body: { items },
+    }),
 
   /**
    * Changes the answer already recorded for one card. A correction, not a review: it spends

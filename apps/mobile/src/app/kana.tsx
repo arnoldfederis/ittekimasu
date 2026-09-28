@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { Button } from "@/components/button";
+import { KanaQuiz } from "@/components/kana-quiz";
 import { KanaSheet } from "@/components/kana-sheet";
 import { useOfflineBannerClearance } from "@/components/offline-banner";
 import {
@@ -18,6 +19,8 @@ import {
   toKanaCards,
 } from "@/constants/kana";
 import { useThemeColors } from "@/constants/theme";
+import { useKanaProgress, useKanaProgressRestore } from "@/lib/kana-progress";
+import type { QuizMode } from "@/lib/kana-quiz";
 
 const SCRIPTS: { key: KanaScript; label: string }[] = [
   { key: "hiragana", label: "Hiragana" },
@@ -38,8 +41,11 @@ function pickKey(entry: KanaEntry, script: KanaScript): string {
  * Not a deck and not a review session. Kana is the one part of the app that is a reference
  * rather than something to be scheduled — SM-2 on a syllabary spaces あ six days out for
  * being answered correctly, which is the algorithm fighting the material. It reads from
- * constants/kana.ts, so it costs no request, works offline from a cold start, and records
- * nothing against the learner.
+ * constants/kana.ts, so it costs no request and works offline from a cold start.
+ *
+ * The quiz does keep a record — how often each character was answered right — but on the
+ * DEVICE (lib/kana-progress.ts), never as a schedule, and it spends none of the daily review
+ * allowance. Pro also backs it up. The chart shows it as a small mark on each cell.
  *
  * Hiragana first because the N5 deck writes its readings in it.
  */
@@ -48,6 +54,10 @@ export default function KanaScreen() {
   const colors = useThemeColors();
   const [script, setScript] = useState<KanaScript>("hiragana");
   const [openIndex, setOpenIndex] = useState<number | null>(null);
+
+  const progress = useKanaProgress();
+  // Pro: fold the server backup into this device's marks. No-op on the free plan.
+  useKanaProgressRestore();
 
   /*
    * Practice picks its characters on the chart itself.
@@ -62,8 +72,11 @@ export default function KanaScreen() {
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<Set<string>>(new Set());
 
-  /** The shuffled deck, or null when the sheet is closed. Built once, on Start. */
-  const [deck, setDeck] = useState<KanaCard[] | null>(null);
+  /** The running quiz: its shuffled deck and mode, or null. Built once, on Easy or Hard. */
+  const [quiz, setQuiz] = useState<{
+    deck: KanaCard[];
+    mode: QuizMode;
+  } | null>(null);
 
   /**
    * The whole chart as cards, memoised on the script so the sheet's FlatList is not handed a
@@ -105,6 +118,14 @@ export default function KanaScreen() {
     });
   }
 
+  const allPicked = KANA_ORDER.every((entry) =>
+    picked.has(pickKey(entry, script)),
+  );
+
+  function startQuiz(mode: QuizMode) {
+    setQuiz({ deck: shuffleKana(pickedCards), mode });
+  }
+
   function entriesOf(rows: KanaCell[][]): KanaEntry[] {
     return rows.flat().filter((cell): cell is KanaEntry => cell !== null);
   }
@@ -136,11 +157,14 @@ export default function KanaScreen() {
     }
 
     const isPicked = picking && picked.has(pickKey(cell, script));
+    const correct = progress[glyphOf(cell, script)]?.correct ?? 0;
 
     return (
       <Pressable
         accessibilityHint={picking ? undefined : "Opens the character"}
-        accessibilityLabel={`${glyphOf(cell, script)}, ${cell.romaji}`}
+        accessibilityLabel={`${glyphOf(cell, script)}, ${cell.romaji}${
+          correct > 0 ? `, answered correctly ${correct} times` : ""
+        }`}
         accessibilityRole={picking ? "checkbox" : "button"}
         accessibilityState={picking ? { checked: isPicked } : undefined}
         className={`min-h-16 flex-1 items-center justify-center gap-0.5 rounded-button border py-2 active:bg-surface-sunken ${
@@ -167,6 +191,22 @@ export default function KanaScreen() {
           than a preference that could be left in the wrong position.
         */}
         <Text className="text-caption text-ink-subtle">{cell.romaji}</Text>
+
+        {/*
+          The quiz's streak mark: how many times this one has been answered right. Only ever
+          counts up — a miss does not take one away — so the chart fills in as the learner
+          goes, and a blank cell means "not practised yet", never "failed".
+        */}
+        {correct > 0 ? (
+          <View className="absolute top-1 right-1 min-w-4 items-center rounded-pill bg-primary-tint px-1">
+            <Text
+              className="text-primary"
+              style={{ fontSize: 10, lineHeight: 14 }}
+            >
+              {correct > 99 ? "99+" : correct}
+            </Text>
+          </View>
+        ) : null}
       </Pressable>
     );
   }
@@ -242,16 +282,35 @@ export default function KanaScreen() {
           })}
         </View>
 
-        <Text className="px-4 pb-4 text-caption text-ink-subtle">
+        <View className="flex-row items-center gap-3 px-4 pb-4">
+          <Text className="flex-1 text-caption text-ink-subtle">
+            {picking ? (
+              <>
+                Tap the ones to practise. Both scripts count — switch above and
+                keep picking.
+              </>
+            ) : (
+              <>{KANA_COUNT} characters. Tap one to hear it.</>
+            )}
+          </Text>
+
+          {/*
+            The whole script in one tap, beside the section and row toggles. Names the script
+            it acts on, because it only takes the grid on screen: the other script's picks are
+            left alone, the same as every other group toggle here.
+          */}
           {picking ? (
-            <>
-              Tap the ones to practise. Both scripts count — switch above and
-              keep picking.
-            </>
-          ) : (
-            <>{KANA_COUNT} characters. Tap one to hear it.</>
-          )}
-        </Text>
+            <Pressable
+              accessibilityRole="button"
+              className="min-h-11 justify-center active:opacity-60"
+              onPress={() => toggleGroup(KANA_ORDER)}
+            >
+              <Text className="text-callout text-primary">
+                {allPicked ? "Clear" : "Select all"} {script}
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
 
         {KANA_SECTIONS.map((section) => {
           const sectionEntries = entriesOf(section.rows);
@@ -340,43 +399,55 @@ export default function KanaScreen() {
 
       {/*
         Pinned over the grid rather than at the end of it: the count is what is being decided,
-        and a Start button below 104 cells is somewhere nobody scrolls back to.
+        and a Start button below a hundred cells is somewhere nobody scrolls back to.
+
+        Two starts, one per mode, rather than a mode picker and then a Start: choosing the
+        mode IS starting, and a separate step would be a screen that exists to be tapped
+        through.
       */}
       {picking ? (
         <View
-          className="border-line border-t bg-surface px-4 pt-3"
+          className="gap-2 border-line border-t bg-surface px-4 pt-3"
           style={{ paddingBottom: 16 + bannerClearance }}
         >
-          <Button
-            disabled={pickedCards.length === 0}
-            onPress={() => setDeck(shuffleKana(pickedCards))}
-            title={
-              pickedCards.length === 0
-                ? "Pick at least one"
-                : `Practise ${pickedCards.length} character${pickedCards.length === 1 ? "" : "s"}`
-            }
-          />
+          <Text className="text-center text-caption text-ink-subtle">
+            {pickedCards.length === 0
+              ? "Pick at least one to start."
+              : `${pickedCards.length} picked · Easy: choose from four · Hard: type it`}
+          </Text>
+          <View className="flex-row gap-3">
+            <Button
+              className="flex-1"
+              disabled={pickedCards.length === 0}
+              onPress={() => startQuiz("easy")}
+              title="Easy"
+            />
+            <Button
+              className="flex-1"
+              disabled={pickedCards.length === 0}
+              onPress={() => startQuiz("hard")}
+              title="Hard"
+              variant="secondary"
+            />
+          </View>
         </View>
       ) : null}
 
       <KanaSheet
-        index={deck ? 0 : openIndex}
-        onClose={() => {
-          setDeck(null);
-          setOpenIndex(null);
-        }}
-        // Only when browsing. A practice deck already mixes scripts, so there is no single
-        // one for the sheet to flip.
-        onToggleScript={
-          deck
-            ? undefined
-            : () =>
-                setScript((current) =>
-                  current === "hiragana" ? "katakana" : "hiragana",
-                )
+        index={openIndex}
+        onClose={() => setOpenIndex(null)}
+        onToggleScript={() =>
+          setScript((current) =>
+            current === "hiragana" ? "katakana" : "hiragana",
+          )
         }
-        order={deck ?? browseDeck}
-        practice={deck !== null}
+        order={browseDeck}
+      />
+
+      <KanaQuiz
+        deck={quiz?.deck ?? null}
+        mode={quiz?.mode ?? "easy"}
+        onClose={() => setQuiz(null)}
       />
     </>
   );

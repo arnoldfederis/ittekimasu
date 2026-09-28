@@ -66,6 +66,7 @@
     "check-types": "tsc --noEmit",
     "pre:push": "biome check src && tsc --noEmit",
     "icons": "bun scripts/generate-brand-assets.mjs",
+    "gallery": "bun screenshots/compose-devpost.mjs",
     "kana-strokes": "bun scripts/generate-kana-strokes.mjs",
     "stroke-font": "bun scripts/generate-stroke-font.mjs"
   },

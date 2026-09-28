@@ -16,6 +16,7 @@ import app.ittekimasu.server.exception.ResourceNotFoundException;
 import app.ittekimasu.server.repository.CardRepository;
 import app.ittekimasu.server.repository.CourseRepository;
 import app.ittekimasu.server.repository.UserCardProgressRepository;
+import app.ittekimasu.server.repository.UserKanaProgressRepository;
 import app.ittekimasu.server.repository.UserRepository;
 import app.ittekimasu.server.repository.UserStudyDayRepository;
 import app.ittekimasu.server.service.SpacedRepetitionService.Schedule;
@@ -80,6 +81,7 @@ public class ReviewService {
   private final UserCardProgressRepository progressRepository;
   private final UserRepository userRepository;
   private final UserStudyDayRepository studyDayRepository;
+  private final UserKanaProgressRepository kanaProgressRepository;
   private final SpacedRepetitionService scheduler;
   private final EntitlementService entitlementService;
 
@@ -89,6 +91,7 @@ public class ReviewService {
       UserCardProgressRepository progressRepository,
       UserRepository userRepository,
       UserStudyDayRepository studyDayRepository,
+      UserKanaProgressRepository kanaProgressRepository,
       SpacedRepetitionService scheduler,
       EntitlementService entitlementService) {
     this.courseRepository = courseRepository;
@@ -96,6 +99,7 @@ public class ReviewService {
     this.progressRepository = progressRepository;
     this.userRepository = userRepository;
     this.studyDayRepository = studyDayRepository;
+    this.kanaProgressRepository = kanaProgressRepository;
     this.scheduler = scheduler;
     this.entitlementService = entitlementService;
   }
@@ -480,6 +484,11 @@ public class ReviewService {
    * IS the request, so it goes too — anything less would leave a profile claiming a
    * twelve-day habit next to zero cards learned.
    *
+   * <p>The kana quiz's Pro backup goes too, in the same transaction. It is not SRS progress,
+   * but it is progress, and a restore on the next launch would otherwise put the streak marks
+   * straight back onto a chart the learner just asked to start over. (The device clears its
+   * own copy when this succeeds.)
+   *
    * @return how many cards were forgotten.
    */
   @Transactional
@@ -489,6 +498,7 @@ public class ReviewService {
 
     progressRepository.deleteAllByUserId(userId);
     studyDayRepository.deleteAllByUserId(userId);
+    kanaProgressRepository.deleteAllByUserId(userId);
 
     user.setCurrentStreakDays(0);
     user.setLongestStreakDays(0);

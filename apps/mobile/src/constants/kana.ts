@@ -27,6 +27,13 @@ export type KanaEntry = {
   romaji: string;
   /** Shown under the romaji in the sheet. Only where the character needs a caveat. */
   note?: string;
+  /**
+   * Other romanisations the typed quiz accepts for THIS character, beyond the generic
+   * Hepburn/Kunrei pairs in lib/kana-quiz.ts (shi/si, tsu/tu, …). Only the ぢ/づ family needs
+   * it: their Nihon-shiki spellings (di, du, dya) are what tell them apart from じ/ず, so they
+   * belong to these entries rather than to a table that would also accept "di" for じ.
+   */
+  alt?: string[];
 };
 
 /** A gap in the grid — や has no い or え column. Keeps the table aligned. */
@@ -164,12 +171,14 @@ const DAKUTEN: KanaSection = {
         katakana: "ヂ",
         romaji: "ji",
         note: "Rare. じ does this job in almost every word.",
+        alt: ["di"],
       },
       {
         hiragana: "づ",
         katakana: "ヅ",
         romaji: "zu",
         note: "Rare. ず does this job in almost every word.",
+        alt: ["du"],
       },
       { hiragana: "で", katakana: "デ", romaji: "de" },
       { hiragana: "ど", katakana: "ド", romaji: "do" },
@@ -242,6 +251,37 @@ const YOON: KanaSection = {
       { hiragana: "じゅ", katakana: "ジュ", romaji: "ju" },
       { hiragana: "じょ", katakana: "ジョ", romaji: "jo" },
     ],
+    /*
+     * ぢ's yōon, the same sounds as じゃ/じゅ/じょ in modern Japanese and almost as rare as ぢ
+     * itself. In the chart because a chart that stops at じ's row looks like it forgot one.
+     *
+     * The romaji is deliberately IDENTICAL to じゃ's. The quiz compares answers by romaji, not
+     * by character, for exactly this pair: a multiple-choice question never offers "ja"
+     * twice, and typing "ja" is right for either. The Nihon-shiki spellings go in `alt`.
+     */
+    [
+      {
+        hiragana: "ぢゃ",
+        katakana: "ヂャ",
+        romaji: "ja",
+        note: "Rare. じゃ does this job in almost every word.",
+        alt: ["dya"],
+      },
+      {
+        hiragana: "ぢゅ",
+        katakana: "ヂュ",
+        romaji: "ju",
+        note: "Rare. じゅ does this job in almost every word.",
+        alt: ["dyu"],
+      },
+      {
+        hiragana: "ぢょ",
+        katakana: "ヂョ",
+        romaji: "jo",
+        note: "Rare. じょ does this job in almost every word.",
+        alt: ["dyo"],
+      },
+    ],
     [
       { hiragana: "びゃ", katakana: "ビャ", romaji: "bya" },
       { hiragana: "びゅ", katakana: "ビュ", romaji: "byu" },
@@ -303,7 +343,7 @@ export function indexOfKana(entry: KanaEntry): number {
  * yourself: by the third row you are reciting the sequence, not reading the character.
  * Shuffling breaks that, and nothing else about the sheet changes.
  *
- * Takes the chosen cards rather than always shuffling all 104: practice is a selection made
+ * Takes the chosen cards rather than always shuffling the whole chart: practice is a selection made
  * on the chart, and a session of あ行 and か行 — or a handful from each script — is the
  * common case.
  *

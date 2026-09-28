@@ -8,6 +8,7 @@ import { useOfflineBannerClearance } from "@/components/offline-banner";
 import { PRIVACY_URL, TERMS_URL } from "@/constants/legal";
 import { api } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
+import { clearKanaProgress } from "@/lib/kana-progress";
 import { useIsOnline } from "@/lib/network";
 import { openUrl } from "@/lib/open-url";
 import { usePurchases } from "@/lib/purchases";
@@ -23,7 +24,7 @@ const MANAGE_SUBSCRIPTIONS_URL = "https://apps.apple.com/account/subscriptions";
 export default function SettingsScreen() {
   const queryClient = useQueryClient();
   const online = useIsOnline();
-  const { signOut, forgetOnboarded } = useAuth();
+  const { user, signOut, forgetOnboarded } = useAuth();
   const { restore, hasPremium } = usePurchases();
   const [busy, setBusy] = useState(false);
   const bannerClearance = useOfflineBannerClearance();
@@ -47,7 +48,11 @@ export default function SettingsScreen() {
 
   const resetProgress = useMutation({
     mutationFn: () => api.resetProgress(),
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
+      // The kana quiz's marks too. The server's copy went with the rest of the progress; this
+      // one lives on the phone, and leaving it would put streak marks on a chart the learner
+      // has just asked to start over.
+      if (user) await clearKanaProgress(user.uid);
       // Everything derived from progress is now wrong: decks, due counts, the grid, the
       // streak on /users/me and the seen-cards browser.
       queryClient.invalidateQueries();
@@ -63,7 +68,7 @@ export default function SettingsScreen() {
     // An Alert, not a toast: this erases the study grid and the streak as well as the cards.
     Alert.alert(
       "Start learning over?",
-      "Every card goes back to unseen, and your streak and study history are cleared. Your checklist and subscription are untouched. This cannot be undone.",
+      "Every card goes back to unseen, and your streak, study history and kana quiz progress are cleared. Your checklist and subscription are untouched. This cannot be undone.",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -99,6 +104,8 @@ export default function SettingsScreen() {
       // uid, which outlives the server row. Signing back in with the same Apple ID would
       // otherwise route straight into the tabs of an account that no longer exists.
       await forgetOnboarded();
+      // Keyed by the same uid, so it outlives the account for the same reason.
+      if (user) await clearKanaProgress(user.uid);
       // Sign-out clears the query cache, so nothing of the deleted account survives it.
       await signOut();
     },
