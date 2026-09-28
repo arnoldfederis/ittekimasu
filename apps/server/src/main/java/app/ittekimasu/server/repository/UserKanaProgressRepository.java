@@ -27,8 +27,15 @@ public interface UserKanaProgressRepository extends JpaRepository<UserKanaProgre
    * <p>A native upsert, as in {@code UserStudyDayRepository}: two uploads at once would both
    * see "no row yet" in a read-then-write, and the second insert would trip the unique
    * constraint.
+   *
+   * <p>{@code clearAutomatically}: a native statement writes straight to the table and never
+   * touches Hibernate's persistence context, so a row already loaded in this transaction keeps
+   * its OLD values — and the read that follows returns that cached copy rather than the merged
+   * row. Two syncs in one transaction returned the first sync's totals; clearing after the
+   * write makes the next read go to the database. {@code flushAutomatically} writes anything
+   * pending first, so the clear cannot discard it.
    */
-  @Modifying
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
   @Query(
       value =
           """
