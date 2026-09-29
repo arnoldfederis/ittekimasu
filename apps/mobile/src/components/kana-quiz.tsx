@@ -300,7 +300,7 @@ export function KanaQuiz({ deck, mode, onClose }: KanaQuizProps) {
                 className="text-ink"
                 minimumFontScale={0.5}
                 numberOfLines={1}
-                style={{ fontSize: card.entry.hiragana.length > 1 ? 80 : 104 }}
+                style={{ fontSize: 104 }}
               >
                 {glyphOf(card.entry, card.script)}
               </Text>
