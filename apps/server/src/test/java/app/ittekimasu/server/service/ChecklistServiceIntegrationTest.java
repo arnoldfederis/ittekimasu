@@ -8,8 +8,10 @@ import app.ittekimasu.server.dto.response.UserChecklistResponse;
 import app.ittekimasu.server.entity.User;
 import app.ittekimasu.server.exception.ForbiddenException;
 import app.ittekimasu.server.repository.ChecklistTemplateRepository;
+import app.ittekimasu.server.repository.UserChecklistTaskRepository;
 import app.ittekimasu.server.repository.UserRepository;
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,6 +34,7 @@ class ChecklistServiceIntegrationTest {
   @Autowired private ChecklistService checklistService;
   @Autowired private ChecklistTemplateRepository templateRepository;
   @Autowired private UserRepository userRepository;
+  @Autowired private UserChecklistTaskRepository userChecklistTaskRepository;
 
   private User user;
   private UUID engineerTemplateId;
@@ -158,5 +161,39 @@ class ChecklistServiceIntegrationTest {
     assertThatThrownBy(
             () -> checklistService.setTaskCompletion(attackerId, victimTaskId, true))
         .isInstanceOf(ForbiddenException.class);
+  }
+
+  /**
+   * The reminder's query against the real seed: day 14 holds the address registration AND
+   * health insurance, and the push has to lead with the address, which the other depends on.
+   */
+  @Test
+  void theDeadlineReminderLeadsWithTheAddressRegistrationTheDayBefore() {
+    checklistService.createChecklist(
+        user.getId(), new CreateChecklistRequest(engineerTemplateId, MOVE_DATE));
+    LocalDate dayBefore = MOVE_DATE.plusDays(13);
+
+    var open =
+        userChecklistTaskRepository.findOpenDueOn(
+            user.getId(),
+            ReminderService.CHECKLIST_LEAD_DAYS.stream().map(dayBefore::plusDays).toList());
+
+    assertThat(ReminderService.checklistMessage(open, dayBefore))
+        .contains(
+            new ReminderService.Message(
+                "2 tasks due tomorrow on your move checklist",
+                "Register your address at the ward office within 14 days of moving in,"
+                    + " and 1 more"));
+  }
+
+  @Test
+  void theDeadlineReminderSkipsATaskAlreadyDone() {
+    checklistService.createChecklist(
+        user.getId(), new CreateChecklistRequest(engineerTemplateId, MOVE_DATE));
+    LocalDate day = MOVE_DATE.minusDays(30);
+    userChecklistTaskRepository.findOpenDueOn(user.getId(), List.of(day))
+        .forEach(task -> checklistService.setTaskCompletion(user.getId(), task.getId(), true));
+
+    assertThat(userChecklistTaskRepository.findOpenDueOn(user.getId(), List.of(day))).isEmpty();
   }
 }

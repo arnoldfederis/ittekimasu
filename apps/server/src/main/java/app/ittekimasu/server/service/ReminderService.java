@@ -1,12 +1,19 @@
 package app.ittekimasu.server.service;
 
 import app.ittekimasu.server.entity.User;
+import app.ittekimasu.server.entity.UserChecklistTask;
+import app.ittekimasu.server.repository.UserChecklistTaskRepository;
 import app.ittekimasu.server.repository.UserRepository;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -14,7 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Sends the daily study reminder.
+ * Sends the daily reminder: a checklist deadline when one is close, the study nudge otherwise.
  *
  * <p>Server-side rather than a OneSignal dashboard campaign. The dashboard route needs one
  * segment and one recurring campaign per hour offered, which does not scale past a handful
@@ -29,15 +36,47 @@ public class ReminderService {
   private static final String HEADING = "Time for today's Japanese";
   private static final String CONTENT = "A few cards is all it takes to keep your streak.";
 
+  /**
+   * How far ahead a checklist task is announced. Tomorrow is the last useful warning at an
+   * evening hour; three days is enough to book the appointment or chase HR. Fixed offsets
+   * rather than "anything within a week" so each task is announced at most twice without a
+   * column to remember that it already was.
+   */
+  static final List<Integer> CHECKLIST_LEAD_DAYS = List.of(1, 3);
+
+  /** What one push says. Identical messages are batched into a single OneSignal request. */
+  record Message(String heading, String content) {}
+
   private final UserRepository userRepository;
+  private final UserChecklistTaskRepository checklistTaskRepository;
   private final OneSignalClient oneSignal;
   private final ReviewService reviewService;
 
   public ReminderService(
-      UserRepository userRepository, OneSignalClient oneSignal, ReviewService reviewService) {
+      UserRepository userRepository,
+      UserChecklistTaskRepository checklistTaskRepository,
+      OneSignalClient oneSignal,
+      ReviewService reviewService) {
     this.userRepository = userRepository;
+    this.checklistTaskRepository = checklistTaskRepository;
     this.oneSignal = oneSignal;
     this.reviewService = reviewService;
+  }
+
+  /**
+   * The zone the user's reminder hour is expressed in. A bad or missing zone falls back to
+   * the app zone rather than throwing: one unparseable row must not stop everyone else's
+   * reminders — and it used to, because only {@link #isDue} guarded it and the stamping at
+   * the end of the tick called {@code ZoneId.of} directly.
+   */
+  static ZoneId zoneOf(User user) {
+    try {
+      return user.getReminderTimezone() == null
+          ? ReviewService.APP_ZONE
+          : ZoneId.of(user.getReminderTimezone());
+    } catch (Exception ex) {
+      return ReviewService.APP_ZONE;
+    }
   }
 
   /**
@@ -51,18 +90,7 @@ public class ReminderService {
       return false;
     }
 
-    ZoneId zone;
-    try {
-      // A bad or missing zone should not stop everyone else's reminders.
-      zone =
-          user.getReminderTimezone() == null
-              ? ReviewService.APP_ZONE
-              : ZoneId.of(user.getReminderTimezone());
-    } catch (Exception ex) {
-      zone = ReviewService.APP_ZONE;
-    }
-
-    ZonedDateTime local = now.atZone(zone);
+    ZonedDateTime local = now.atZone(zoneOf(user));
     if (local.getHour() != user.getReminderHour()) {
       return false;
     }
@@ -70,6 +98,46 @@ public class ReminderService {
     // The job runs every 15 minutes, so without this it would fire four times in the hour.
     LocalDate localDate = local.toLocalDate();
     return !localDate.equals(user.getLastRemindedOn());
+  }
+
+  /**
+   * The checklist push for these tasks, or empty when none of them falls on a lead day.
+   *
+   * <p>The nearest deadline wins, and within a day the category order does, then the
+   * template's: "Register your address" and "Enroll in health insurance" both land on day 14,
+   * and the first is the one the second depends on. Category first because {@code sortOrder}
+   * restarts inside each category — ordered by it alone, health insurance (WORK_ADMIN #1)
+   * would headline over the address (VISA_IMMIGRATION #8). Anything else due the same day is
+   * counted, not listed — a push is two lines on a lock screen.
+   *
+   * <p>Pure and static, like {@link #isDue}, so the copy is testable without a database.
+   */
+  static Optional<Message> checklistMessage(List<UserChecklistTask> openTasks, LocalDate today) {
+    for (int lead : CHECKLIST_LEAD_DAYS) {
+      LocalDate day = today.plusDays(lead);
+      List<UserChecklistTask> onDay =
+          openTasks.stream()
+              .filter(t -> !t.isCompleted() && day.equals(t.getDueDate()))
+              .sorted(
+                  Comparator.comparing((UserChecklistTask t) -> t.getTask().getCategory())
+                      .thenComparingInt(t -> t.getTask().getSortOrder()))
+              .toList();
+      if (onDay.isEmpty()) {
+        continue;
+      }
+
+      String when = lead == 1 ? "tomorrow" : "in %d days".formatted(lead);
+      String heading =
+          onDay.size() == 1
+              ? "Due %s on your move checklist".formatted(when)
+              : "%d tasks due %s on your move checklist".formatted(onDay.size(), when);
+      String content = onDay.getFirst().getTask().getTitle();
+      if (onDay.size() > 1) {
+        content += onDay.size() == 2 ? ", and 1 more" : ", and %d more".formatted(onDay.size() - 1);
+      }
+      return Optional.of(new Message(heading, content));
+    }
+    return Optional.empty();
   }
 
   /**
@@ -82,6 +150,9 @@ public class ReminderService {
    *   <li>Every card is scheduled days ahead. Clearing a deck buys six days of silence from
    *       the algorithm, and a nudge to open an app with nothing in it is worse than none.
    * </ul>
+   *
+   * <p>Study only. A checklist deadline is a different reason to be told, and studying today
+   * does nothing to register an address.
    */
   private boolean isWorthReminding(User user) {
     return suppressionReason(user) == null;
@@ -103,6 +174,26 @@ public class ReminderService {
       return "no cards due and today's new-card intake is spent";
     }
     return null;
+  }
+
+  /**
+   * The one push this user gets today, or empty when there is nothing worth saying.
+   *
+   * <p>Still ONE a day, whichever it is: the privacy policy promises "the one daily reminder
+   * you asked for", and a second push on deadline days is how a channel gets muted in the
+   * weeks it matters most. The checklist wins because a missed visa step costs more than a
+   * missed review — the cards will still be there tomorrow.
+   */
+  private Optional<Message> messageFor(User user, LocalDate localToday) {
+    List<LocalDate> leadDays =
+        CHECKLIST_LEAD_DAYS.stream().map(d -> localToday.plusDays(d)).toList();
+    Optional<Message> checklist =
+        checklistMessage(
+            checklistTaskRepository.findOpenDueOn(user.getId(), leadDays), localToday);
+    if (checklist.isPresent()) {
+      return checklist;
+    }
+    return isWorthReminding(user) ? Optional.of(new Message(HEADING, CONTENT)) : Optional.empty();
   }
 
   /**
@@ -132,63 +223,73 @@ public class ReminderService {
 
     List<User> candidates = userRepository.findAllByReminderHourNotNull();
     List<User> atTheirHour = candidates.stream().filter(user -> isDue(user, now)).toList();
-    List<User> due =
-        atTheirHour.stream()
-            // Only now, on the handful of users whose hour has actually come round: the
-            // check is two queries each, which is fine per tick and pointless for everyone
-            // else.
-            .filter(this::isWorthReminding)
-            .toList();
 
-    if (due.isEmpty()) {
+    // Only now, on the handful of users whose hour has actually come round: deciding what to
+    // say is a few queries each, which is fine per tick and pointless for everyone else.
+    Map<Message, List<User>> byMessage = new LinkedHashMap<>();
+    List<String> suppressed = new ArrayList<>();
+    for (User user : atTheirHour) {
+      Optional<Message> message = messageFor(user, now.atZone(zoneOf(user)).toLocalDate());
+      if (message.isPresent()) {
+        byMessage.computeIfAbsent(message.get(), m -> new ArrayList<>()).add(user);
+      } else {
+        suppressed.add("%s: %s".formatted(user.getFirebaseUid(), suppressionReason(user)));
+      }
+    }
+
+    if (byMessage.isEmpty()) {
       /*
        * The three counts tell the whole story at a glance:
        *   candidates 0            → nobody has a reminder hour set at all
        *   atTheirHour 0           → set, but nobody's local hour matches this tick, or they
        *                             have already been reminded today (lastRemindedOn)
-       *   due 0 with atTheirHour>0→ suppressed by isWorthReminding: already studied today,
-       *                             or every card is scheduled ahead
+       *   due 0 with atTheirHour>0→ no checklist deadline close, and the study nudge was
+       *                             suppressed: already studied today, or every card is
+       *                             scheduled ahead
        */
-      // Name the rule that fired for each, so "0 worth reminding" is not the end of the
-      // trail. At most a handful of users are ever at their hour on one tick.
-      List<String> reasons =
-          atTheirHour.stream()
-              .map(user -> "%s: %s".formatted(user.getFirebaseUid(), suppressionReason(user)))
-              .toList();
-
       log.info(
           "Reminder tick: nothing sent — {} with a reminder set, {} at their hour, 0 worth"
               + " reminding {}",
           candidates.size(),
           atTheirHour.size(),
-          reasons);
+          suppressed);
       return;
     }
 
-    List<String> externalIds = due.stream().map(User::getFirebaseUid).toList();
+    for (Map.Entry<Message, List<User>> entry : byMessage.entrySet()) {
+      Message message = entry.getKey();
+      List<String> externalIds = entry.getValue().stream().map(User::getFirebaseUid).toList();
+      for (int start = 0;
+          start < externalIds.size();
+          start += OneSignalClient.MAX_ALIASES_PER_REQUEST) {
+        List<String> batch =
+            externalIds.subList(
+                start,
+                Math.min(start + OneSignalClient.MAX_ALIASES_PER_REQUEST, externalIds.size()));
+        oneSignal.send(batch, message.heading(), message.content());
+      }
 
-    for (int start = 0; start < externalIds.size(); start += OneSignalClient.MAX_ALIASES_PER_REQUEST) {
-      List<String> batch =
-          externalIds.subList(
-              start,
-              Math.min(start + OneSignalClient.MAX_ALIASES_PER_REQUEST, externalIds.size()));
-      oneSignal.send(batch, HEADING, CONTENT);
+      // The external ids are the Firebase UIDs OneSignal was told about by
+      // `OneSignal.login(uid)`. If a push silently never lands, this is the value to check
+      // against the OneSignal dashboard's Audience — an id it has never seen comes back as
+      // `invalid_aliases`, which OneSignalClient logs at INFO.
+      log.info(
+          "Reminder tick: sent \"{}\" to {} users: {}",
+          message.heading(),
+          externalIds.size(),
+          externalIds);
     }
 
     // Stamped whether or not the push succeeded. A failed send is not worth retrying on the
     // next tick — a reminder that lands an hour late is worse than one that never arrives.
-    for (User user : due) {
-      ZoneId zone =
-          user.getReminderTimezone() == null
-              ? ReviewService.APP_ZONE
-              : ZoneId.of(user.getReminderTimezone());
-      user.setLastRemindedOn(now.atZone(zone).toLocalDate());
+    for (List<User> users : byMessage.values()) {
+      for (User user : users) {
+        user.setLastRemindedOn(now.atZone(zoneOf(user)).toLocalDate());
+      }
     }
 
-    // The external ids are the Firebase UIDs OneSignal was told about by
-    // `OneSignal.login(uid)`. If a push silently never lands, this is the value to check
-    // against the OneSignal dashboard's Audience — an id it has never seen comes back as
-    // `invalid_aliases`, which OneSignalClient logs at INFO.
-    log.info("Reminder tick: sent to {} users: {}", due.size(), externalIds);
+    if (!suppressed.isEmpty()) {
+      log.info("Reminder tick: {} not worth reminding {}", suppressed.size(), suppressed);
+    }
   }
 }
