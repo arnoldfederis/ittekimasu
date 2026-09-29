@@ -13,8 +13,9 @@
  * Hiragana and katakana share one structure on purpose. Two parallel tables drift the moment
  * someone fixes a romaji in one of them.
  *
- * Coverage: 46 gojūon + 25 dakuten/handakuten + 33 yōon = 104 per script, the same set the
- * decks carried. Still deliberately excluded: the katakana long-vowel mark ー and the
+ * Coverage: 46 gojūon + 25 dakuten/handakuten + 36 yōon = 107 per script — the 104 the
+ * decks carried, plus ぢゃ/ぢゅ/ぢょ, which came back once the quiz compared answers by sound.
+ * Still deliberately excluded: the katakana long-vowel mark ー and the
  * extended foreign-sound combinations (ファ, ティ, ウェ) — they matter for reading menus, but
  * neither is a syllable you can sound out on its own.
  */
