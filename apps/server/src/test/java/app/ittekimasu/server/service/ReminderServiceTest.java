@@ -147,9 +147,12 @@ class ReminderServiceTest {
         .contains("Tomorrow");
   }
 
-  /** Day 14 holds both the address registration and health insurance. */
+  /**
+   * Day 14 holds both the address registration and health insurance. Every task is named on
+   * its own line — "and 1 more" hid a real deadline behind a count.
+   */
   @Test
-  void countsTheOtherTasksDueTheSameDay() {
+  void listsEveryTaskDueTheSameDayOnItsOwnLine() {
     LocalDate day = TODAY.plusDays(1);
     List<UserChecklistTask> tasks =
         List.of(
@@ -160,7 +163,33 @@ class ReminderServiceTest {
         .contains(
             new ReminderService.Message(
                 "3 tasks due tomorrow on your move checklist",
-                "Register your address, and 2 more"));
+                """
+                • Register your address
+                • Enroll in health insurance
+                • Apply for your My Number card\
+                """));
+  }
+
+  @Test
+  void listsAtMostThreeAndCountsTheRest() {
+    LocalDate day = TODAY.plusDays(1);
+    List<UserChecklistTask> tasks =
+        List.of(
+            task("One", day, false, ChecklistCategory.VISA_IMMIGRATION, 1),
+            task("Two", day, false, ChecklistCategory.VISA_IMMIGRATION, 2),
+            task("Three", day, false, ChecklistCategory.VISA_IMMIGRATION, 3),
+            task("Four", day, false, ChecklistCategory.VISA_IMMIGRATION, 4),
+            task("Five", day, false, ChecklistCategory.VISA_IMMIGRATION, 5));
+    assertThat(ReminderService.checklistMessage(tasks, TODAY))
+        .contains(
+            new ReminderService.Message(
+                "5 tasks due tomorrow on your move checklist",
+                """
+                • One
+                • Two
+                • Three
+                +2 more\
+                """));
   }
 
   /**
@@ -176,7 +205,7 @@ class ReminderServiceTest {
             task("Register your address", day, false, ChecklistCategory.VISA_IMMIGRATION, 8));
     assertThat(ReminderService.checklistMessage(tasks, TODAY))
         .map(ReminderService.Message::content)
-        .contains("Register your address, and 1 more");
+        .contains("• Register your address\n• Enroll in health insurance");
   }
 
   @Test

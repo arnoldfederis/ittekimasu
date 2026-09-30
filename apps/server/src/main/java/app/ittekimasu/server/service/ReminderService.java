@@ -44,6 +44,9 @@ public class ReminderService {
    */
   static final List<Integer> CHECKLIST_LEAD_DAYS = List.of(1, 3);
 
+  /** Tasks named in one push before the rest are counted as "+N more". */
+  static final int MAX_LISTED_TASKS = 3;
+
   /** What one push says. Identical messages are batched into a single OneSignal request. */
   record Message(String heading, String content) {}
 
@@ -107,8 +110,7 @@ public class ReminderService {
    * template's: "Register your address" and "Enroll in health insurance" both land on day 14,
    * and the first is the one the second depends on. Category first because {@code sortOrder}
    * restarts inside each category — ordered by it alone, health insurance (WORK_ADMIN #1)
-   * would headline over the address (VISA_IMMIGRATION #8). Anything else due the same day is
-   * counted, not listed — a push is two lines on a lock screen.
+   * would headline over the address (VISA_IMMIGRATION #8).
    *
    * <p>Pure and static, like {@link #isDue}, so the copy is testable without a database.
    */
@@ -131,13 +133,31 @@ public class ReminderService {
           onDay.size() == 1
               ? "Due %s on your move checklist".formatted(when)
               : "%d tasks due %s on your move checklist".formatted(onDay.size(), when);
-      String content = onDay.getFirst().getTask().getTitle();
-      if (onDay.size() > 1) {
-        content += onDay.size() == 2 ? ", and 1 more" : ", and %d more".formatted(onDay.size() - 1);
-      }
-      return Optional.of(new Message(heading, content));
+      return Optional.of(new Message(heading, checklistBody(onDay)));
     }
     return Optional.empty();
+  }
+
+  /**
+   * One task is its title. Several are listed one per line, so each deadline is actually
+   * named: the first version said "Register your address…, and 1 more", and the task behind
+   * "1 more" — health insurance, on the same day — was one the learner could not see without
+   * opening the app, which is the thing a deadline push exists to spare them. Past
+   * {@link #MAX_LISTED_TASKS} the rest are counted; iOS truncates a long body on the lock
+   * screen anyway, and the order puts the one that matters most first.
+   */
+  static String checklistBody(List<UserChecklistTask> onDay) {
+    if (onDay.size() == 1) {
+      return onDay.getFirst().getTask().getTitle();
+    }
+    List<String> lines = new ArrayList<>();
+    onDay.stream()
+        .limit(MAX_LISTED_TASKS)
+        .forEach(t -> lines.add("• " + t.getTask().getTitle()));
+    if (onDay.size() > MAX_LISTED_TASKS) {
+      lines.add("+%d more".formatted(onDay.size() - MAX_LISTED_TASKS));
+    }
+    return String.join("\n", lines);
   }
 
   /**

@@ -182,8 +182,8 @@ class ChecklistServiceIntegrationTest {
         .contains(
             new ReminderService.Message(
                 "2 tasks due tomorrow on your move checklist",
-                "Register your address at the ward office within 14 days of moving in,"
-                    + " and 1 more"));
+                "• Register your address at the ward office within 14 days of moving in\n"
+                    + "• Enroll in health insurance and pension at the ward office"));
   }
 
   @Test
